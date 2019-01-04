@@ -1,11 +1,11 @@
-dmenu - dynamic menu
+dmenu-wl - dynamic menu
 ====================
-dmenu is an efficient dynamic menu for X.
+dmenu-wl is an efficient dynamic menu for wayland.
 
 
 Requirements
 ------------
-In order to build dmenu you need the Xlib header files.
+In order to build dmenu you need the wayland-client library and headers.
 
 
 Installation
@@ -13,7 +13,7 @@ Installation
 Edit config.mk to match your local setup (dmenu is installed into
 the /usr/local namespace by default).
 
-Afterwards enter the following command to build and install dmenu
+Afterwards enter the following command to build and install dmenu-wl
 (if necessary as root):
 
     make clean install
@@ -23,7 +23,7 @@ Running dmenu
 -------------
 See the man page for details.
 
-Usage: dmenu [OPTION]...
+Usage: dmenu-wl [OPTION]...
 
 Display newline-separated input stdin as a menubar
 

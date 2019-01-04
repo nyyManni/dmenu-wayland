@@ -7,21 +7,14 @@ VERSION = 4.2.1
 PREFIX = /usr/local
 MANPREFIX = ${PREFIX}/share/man
 
-X11INC = /usr/X11R6/include
-X11LIB = /usr/X11R6/lib
-
-# Xinerama, comment if you don't want it
-#XINERAMALIBS  = -lXinerama
-#XINERAMAFLAGS = -DXINERAMA
-
 # includes and libs
 INCS = 
-LIBS = -lwayland-client -lrt -lwlroots
+LIBS = -lwayland-client -lrt
 
 # flags
-CPPFLAGS = -D_BSD_SOURCE -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
+CPPFLAGS = -D_BSD_SOURCE -DVERSION=\"${VERSION}\"
 CFLAGS   = -std=c99 -pedantic -Wall -Os ${INCS} ${CPPFLAGS}
-LDFLAGS  = -s ${LIBS} -Wl,--no-undefined -Wl,--as-needed -Wl,--start-group
+LDFLAGS  = -s ${LIBS} 
 
 # compiler and linker
 CC = cc

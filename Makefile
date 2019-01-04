@@ -3,7 +3,7 @@
 
 include config.mk
 
-all: options dmenu dmenu_path
+all: options dmenu-wl dmenu_path
 
 options:
 	@echo dmenu build options:
@@ -11,7 +11,7 @@ options:
 	@echo "LDFLAGS  = ${LDFLAGS}"
 	@echo "CC       = ${CC}"
 
-dmenu: dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o
+dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o
 dmenu_path: dmenu_path.o
 
 .c.o: config.mk
@@ -19,14 +19,14 @@ dmenu_path: dmenu_path.o
 	echo ${CC} -c $< ${CFLAGS}
 	@${CC} -c $< ${CFLAGS}
 
-dmenu dmenu_path:
+dmenu-wl dmenu_path:
 	@echo CC -o $@
 	echo ${CC} -o $@ $+ ${LDFLAGS}
 	@${CC} -o $@ $+ ${LDFLAGS}
 
 clean:
 	@echo cleaning
-	@rm -f dmenu dmenu.o draw.o dmenu_path dmenu_path.o dmenu-${VERSION}.tar.gz
+	@rm -f dmenu-wl dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o dmenu_path dmenu_path.o dmenu-${VERSION}.tar.gz
 
 dist: clean
 	@echo creating dist tarball
