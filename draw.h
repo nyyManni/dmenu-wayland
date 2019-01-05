@@ -24,7 +24,18 @@ typedef struct {
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct zwlr_layer_surface_v1 *layer_surface;
 	struct wl_output *output;
-	struct xdg_wm_base *xdg;
+
+	int32_t scale;
+	int32_t width;
+	int32_t height;
+	int32_t logical_width;
+	int32_t logical_height;
+
+	enum wl_output_subpixel subpixel;
+
+	/* struct xdg_wm_base *xdg; */
+	struct zxdg_output_manager_v1 *xdg_output_manager;
+	struct zxdg_output_v1 *xdg_output;
 
 	/* Display *dpy; */
 	cairo_t *cairo;

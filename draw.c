@@ -1,5 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 #include <locale.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -8,16 +9,114 @@
 #include <sys/mman.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
+#include <pango/pangocairo.h>
+#include <xkbcommon/xkbcommon.h>
 /* #include <X11/Xlib.h> */
 #include "draw.h"
 #include "shm.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
-/* #include "cat.h" */
+#include "xdg-output-unstable-v1-client-protocol.h"
 
-#define MAX(a, b)   ((a) > (b) ? (a) : (b))
-#define MIN(a, b)   ((a) < (b) ? (a) : (b))
+
+/* #define MAX(a, b)   ((a) > (b) ? (a) : (b)) */
+/* #define MIN(a, b)   ((a) < (b) ? (a) : (b)) */
 #define DEFFONT     "fixed"
+
+#define HEIGHT 40 
+
+static const char overflow[] = "[buffer overflow]";
+static const int max_chars = 16384;
+
+
+PangoLayout *get_pango_layout(cairo_t *cairo, const char *font,
+		const char *text, double scale, bool markup) {
+	PangoLayout *layout = pango_cairo_create_layout(cairo);
+	PangoAttrList *attrs;
+	if (markup) {
+		char *buf;
+		GError *error = NULL;
+		if (pango_parse_markup(text, -1, 0, &attrs, &buf, NULL, &error)) {
+			pango_layout_set_text(layout, buf, -1);
+			free(buf);
+		} else {
+			/* wlr_log(WLR_ERROR, "pango_parse_markup '%s' -> error %s", text, */
+			/* 		error->message); */
+			g_error_free(error);
+			markup = false; // fallback to plain text
+		}
+	}
+	if (!markup) {
+		attrs = pango_attr_list_new();
+		pango_layout_set_text(layout, text, -1);
+	}
+
+	pango_attr_list_insert(attrs, pango_attr_scale_new(scale));
+	PangoFontDescription *desc = pango_font_description_from_string(font);
+	pango_layout_set_font_description(layout, desc);
+	pango_layout_set_single_paragraph_mode(layout, 1);
+	pango_layout_set_attributes(layout, attrs);
+	pango_attr_list_unref(attrs);
+	pango_font_description_free(desc);
+	return layout;
+}
+
+void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
+		int *baseline, double scale, bool markup, const char *fmt, ...) {
+	char buf[max_chars];
+
+	va_list args;
+	va_start(args, fmt);
+	if (vsnprintf(buf, sizeof(buf), fmt, args) >= max_chars) {
+		strcpy(&buf[sizeof(buf) - sizeof(overflow)], overflow);
+	}
+	va_end(args);
+
+	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
+	pango_cairo_update_layout(cairo, layout);
+	pango_layout_get_pixel_size(layout, width, height);
+	if (baseline) {
+		*baseline = pango_layout_get_baseline(layout) / PANGO_SCALE;
+	}
+	g_object_unref(layout);
+}
+
+void pango_printf(cairo_t *cairo, const char *font,
+		double scale, bool markup, const char *fmt, ...) {
+	char buf[max_chars];
+
+	va_list args;
+	va_start(args, fmt);
+	if (vsnprintf(buf, sizeof(buf), fmt, args) >= max_chars) {
+		strcpy(&buf[sizeof(buf) - sizeof(overflow)], overflow);
+	}
+	va_end(args);
+
+	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
+	cairo_font_options_t *fo = cairo_font_options_create();
+	cairo_get_font_options(cairo, fo);
+	pango_cairo_context_set_font_options(pango_layout_get_context(layout), fo);
+	cairo_font_options_destroy(fo);
+	pango_cairo_update_layout(cairo, layout);
+	pango_cairo_show_layout(cairo, layout);
+	g_object_unref(layout);
+}
+
+cairo_subpixel_order_t to_cairo_subpixel_order(enum wl_output_subpixel subpixel) {
+	switch (subpixel) {
+	case WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB:
+		return CAIRO_SUBPIXEL_ORDER_RGB;
+	case WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR:
+		return CAIRO_SUBPIXEL_ORDER_BGR;
+	case WL_OUTPUT_SUBPIXEL_VERTICAL_RGB:
+		return CAIRO_SUBPIXEL_ORDER_VRGB;
+	case WL_OUTPUT_SUBPIXEL_VERTICAL_BGR:
+		return CAIRO_SUBPIXEL_ORDER_VBGR;
+	default:
+		return CAIRO_SUBPIXEL_ORDER_DEFAULT;
+	}
+	return CAIRO_SUBPIXEL_ORDER_DEFAULT;
+}
 
 /* struct xdg_toplevel *xdg_toplevel; */
 /* static Bool loadfont(DC *dc, const char *fontstr); */
@@ -35,8 +134,8 @@
 /* } */
 
 
-/* void */
-/* drawtext(DC *dc, const char *text, unsigned long col[ColLast]) { */
+void
+drawtext(DC *dc, const char *text, unsigned long col[ColLast]) {
 /* 	char buf[256]; */
 /* 	size_t n, mn; */
 
@@ -51,7 +150,7 @@
 
 /* 	drawrect(dc, 0, 0, dc->w, dc->h, True, BG(dc, col)); */
 /* 	drawtextn(dc, buf, mn, col); */
-/* } */
+}
 
 /* void */
 /* drawtextn(DC *dc, const char *text, size_t n, unsigned long col[ColLast]) { */
@@ -127,7 +226,11 @@ static void add_layer_surface(DC *dc) {
   dc->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
       dc->layer_shell, dc->surface, dc->output,
       ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "panel");
-  zwlr_layer_surface_v1_set_size(dc->layer_surface, 1920, 20);
+
+  printf("logical width: %d\n", dc->logical_width);
+  int32_t height = HEIGHT / ((double)dc->width / dc->logical_width);
+
+  zwlr_layer_surface_v1_set_size(dc->layer_surface, dc->logical_width, height);
   zwlr_layer_surface_v1_set_anchor(dc->layer_surface,
 								   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 								   ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
@@ -169,6 +272,160 @@ static void noop() {
 /* 	.description = xdg_output_handle_description, */
 /* }; */
 
+static void output_geometry(void *data, struct wl_output *wl_output, int32_t x,
+		int32_t y, int32_t width_mm, int32_t height_mm, int32_t subpixel,
+		const char *make, const char *model, int32_t transform) {
+	DC *dc = data;
+	dc->subpixel = subpixel;
+	/* printf("x: %d, y: %d\n", x, y); */
+}
+
+static void output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
+		int32_t width, int32_t height, int32_t refresh) {
+	DC *dc = data;
+	printf("w: %d, h: %d\n", width, height);
+	dc->width = width;
+	dc->height = height;
+}
+
+static void output_done(void *data, struct wl_output *wl_output) {
+	/* struct swaybar_output *output = data; */
+	/* set_output_dirty(output); */
+}
+
+static void output_scale(void *data, struct wl_output *wl_output,
+		int32_t factor) {
+	DC *dc = data;
+	dc->scale = factor;
+	printf("%d\n", factor);
+	/* struct swaybar_output *output = data; */
+	/* output->scale = factor; */
+	/* if (output == output->bar->pointer.current) { */
+	/* 	update_cursor(output->bar); */
+	/* 	render_frame(output); */
+	/* } */
+}
+
+struct wl_output_listener output_listener = {
+	.geometry = output_geometry,
+	.mode = output_mode,
+	.done = output_done,
+	.scale = output_scale,
+};
+static void xdg_output_handle_logical_position(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
+	// Who cares
+}
+
+static void xdg_output_handle_logical_size(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
+	// Who cares
+	DC *dc = data;
+	printf("logical size: %dx%d\n\n\n\n", width, height);
+	dc->logical_width = width;
+	dc->logical_height = height;
+}
+
+static void xdg_output_handle_done(void *data,
+		struct zxdg_output_v1 *xdg_output) {
+	/* struct swaybar_output *output = data; */
+	/* struct swaybar *bar = output->bar; */
+
+	/* assert(output->name != NULL); */
+	/* if (!bar_uses_output(bar, output->name)) { */
+	/* 	swaybar_output_free(output); */
+	/* 	return; */
+	/* } */
+
+	/* if (wl_list_empty(&output->link)) { */
+	/* 	wl_list_remove(&output->link); */
+	/* 	wl_list_insert(&bar->outputs, &output->link); */
+
+	/* 	output->surface = wl_compositor_create_surface(bar->compositor); */
+	/* 	assert(output->surface); */
+
+	/* 	determine_bar_visibility(bar, false); */
+	/* } */
+}
+
+static void xdg_output_handle_name(void *data,
+		struct zxdg_output_v1 *xdg_output, const char *name) {
+	/* struct swaybar_output *output = data; */
+	/* free(output->name); */
+	/* output->name = strdup(name); */
+}
+
+static void xdg_output_handle_description(void *data,
+		struct zxdg_output_v1 *xdg_output, const char *description) {
+	// Who cares
+}
+
+struct zxdg_output_v1_listener xdg_output_listener = {
+	.logical_position = xdg_output_handle_logical_position,
+	.logical_size = xdg_output_handle_logical_size,
+	.done = xdg_output_handle_done,
+	.name = xdg_output_handle_name,
+	.description = xdg_output_handle_description,
+};
+
+static struct wl_seat *seat = NULL;
+static struct xkb_context *xkb_context;
+static struct xkb_keymap *keymap = NULL;
+static struct xkb_state *xkb_state = NULL;
+
+static void keyboard_keymap (void *data, struct wl_keyboard *keyboard, uint32_t format, int32_t fd, uint32_t size) {
+	/* char *keymap_string = mmap (NULL, size, PROT_READ, MAP_SHARED, fd, 0); */
+	/* xkb_keymap_unref (keymap); */
+	/* keymap = xkb_keymap_new_from_string (xkb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS); */
+	/* munmap (keymap_string, size); */
+	/* close (fd); */
+	/* xkb_state_unref (xkb_state); */
+	/* xkb_state = xkb_state_new (keymap); */
+}
+static void keyboard_enter (void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	
+}
+static void keyboard_leave (void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface) {
+	
+}
+static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+	printf("key pressed\n");
+	/* if (state == WL_KEYBOARD_KEY_STATE_PRESSED) { */
+	/* 	xkb_keysym_t keysym = xkb_state_key_get_one_sym (xkb_state, key+8); */
+	/* 	uint32_t utf32 = xkb_keysym_to_utf32 (keysym); */
+	/* 	if (utf32) { */
+	/* 		if (utf32 >= 0x21 && utf32 <= 0x7E) { */
+	/* 			printf ("the key %c was pressed\n", (char)utf32); */
+	/* 			/\* if (utf32 == 'q') running = 0; *\/ */
+	/* 		} */
+	/* 		else { */
+	/* 			printf ("the key U+%04X was pressed\n", utf32); */
+	/* 		} */
+	/* 	} */
+	/* 	else { */
+	/* 		char name[64]; */
+	/* 		xkb_keysym_get_name (keysym, name, 64); */
+	/* 		printf ("the key %s was pressed\n", name); */
+	/* 	} */
+	/* } */
+}
+static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
+	/* xkb_state_update_mask (xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group); */
+}
+static struct wl_keyboard_listener keyboard_listener = {&keyboard_keymap, &keyboard_enter, &keyboard_leave, &keyboard_key, &keyboard_modifiers};
+
+static void seat_capabilities (void *data, struct wl_seat *seat, uint32_t capabilities) {
+	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+		struct wl_pointer *pointer = wl_seat_get_pointer (seat);
+		/* wl_pointer_add_listener (pointer, &pointer_listener, NULL); */
+	}
+	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+		struct wl_keyboard *keyboard = wl_seat_get_keyboard (seat);
+		wl_keyboard_add_listener (keyboard, &keyboard_listener, NULL);
+	}
+}
+static struct wl_seat_listener seat_listener = {&seat_capabilities};
+
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	DC *dc = data;
@@ -176,21 +433,34 @@ static void handle_global(void *data, struct wl_registry *registry,
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		dc->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-
+		seat = wl_registry_bind (registry, name, &wl_seat_interface, 1);
+		wl_seat_add_listener (seat, &seat_listener, NULL);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		dc->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 
 	/* } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) { */
 	/* 	dc->xdg = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1); */
 
-	/* } else if (strcmp(interface, wl_output_interface.name) == 0) { */
+	} else if (strcmp(interface, wl_output_interface.name) == 0) {
+
+		dc->output = wl_registry_bind(registry, name, &wl_output_interface, 3);
+		wl_output_add_listener(dc->output, &output_listener, dc);
+		if (dc->xdg_output_manager != NULL) {
+			dc->xdg_output = zxdg_output_manager_v1_get_xdg_output(dc->xdg_output_manager,
+																   dc->output);
+			zxdg_output_v1_add_listener(dc->xdg_output, &xdg_output_listener, dc);
+			/* add_xdg_output(output); */
+		}
 
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		dc->layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
 
 	/* } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) { */
-
+	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
+		dc->xdg_output_manager = wl_registry_bind(registry, name,
+			&zxdg_output_manager_v1_interface, 2);
 	}
+
 }
 
 static void handle_global_remove(void *data, struct wl_registry *registry,
@@ -230,7 +500,11 @@ initdc(void) {
 
 	wl_display_roundtrip(dc->dpy);
 
+	/* Second roundtrip for xdg-output. Will populate display dimensions. */
+	wl_display_roundtrip(dc->dpy);
+
 	dc->buffer = create_buffer(dc);
+	/* wl_display_roundtrip(dc->dpy); */
 
 	dc->surface = wl_compositor_create_surface(dc->compositor);
 	/* struct zwlr_layer_surface_v1 *wlr_surface; */
@@ -243,6 +517,9 @@ initdc(void) {
 	add_layer_surface(dc);
 
 
+	printf("monitor width: %d\n", dc->width);
+
+	wl_surface_set_buffer_scale(dc->surface, 2.0);
 	wl_surface_commit(dc->surface);
 	wl_display_roundtrip(dc->dpy);
 
@@ -255,11 +532,38 @@ initdc(void) {
 	/* dc->font.xfont = NULL; */
 	/* dc->font.set = NULL; */
 	/* dc->canvas = None; */
+	printf("exiting init\n");
 	return dc;
 }
+
+static void buffer_release(void *data, struct wl_buffer *wl_buffer) {
+	/* struct pool_buffer *buffer = data; */
+	/* buffer->busy = false; */
+	printf("released buffer\n");
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+	.release = buffer_release
+};
+
 static struct wl_buffer *create_buffer(DC *dc) {
-	int width = 1920;
-	int height = 128;
+	int width = dc->width;
+	int height = dc->height;
+	printf("w: %d, h: %d\n", width, height);
+	printf("w: %d, h: %d (logical)\n", dc->logical_width, dc->logical_height);
+	printf("scale factor %f\n", 2.0 / 1.75);
+	printf("scale_coeff: %f\n", (double)dc->width / dc->logical_width);
+
+	/* Oh my... */
+	double factor = dc->scale / ((double)dc->width / dc->logical_width);
+	width = dc->width * factor;
+	printf("width: %d\n", width);
+	
+	/* width = 3840 * (2.0 / 1.75); */
+	/* width = 2194 * 1.75; */
+	/* width = 2194 * 3;  */
+	height = HEIGHT * factor;
+
 
 
 	int stride = width * 4;
@@ -283,9 +587,25 @@ static struct wl_buffer *create_buffer(DC *dc) {
 		stride, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 
-	// MagickImage is from cat.h
-	/* memcpy(dc->shm_data, MagickImage, size); */
-	memset(dc->shm_data, 0xff, size);
+	wl_buffer_add_listener(buffer, &buffer_listener, dc);
+
+	/* memset(dc->shm_data, 0x44, size); */
+
+	cairo_surface_t *s = cairo_image_surface_create_for_data(dc->shm_data, CAIRO_FORMAT_ARGB32,
+															 width, height, width * 4);
+	/* cairo_surface_t *recorder = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL); */
+	dc->cairo = cairo_create(s);
+	cairo_set_antialias(dc->cairo, CAIRO_ANTIALIAS_BEST);
+	cairo_font_options_t *fo = cairo_font_options_create();
+	cairo_font_options_set_hint_style(fo, CAIRO_HINT_STYLE_FULL);
+	cairo_font_options_set_antialias(fo, CAIRO_ANTIALIAS_SUBPIXEL);
+	cairo_font_options_set_subpixel_order(fo, to_cairo_subpixel_order(dc->subpixel));
+	cairo_set_font_options(dc->cairo, fo);
+	cairo_font_options_destroy(fo);
+	cairo_save(dc->cairo);
+	
+
+
 	return buffer;
 }
 
@@ -341,10 +661,10 @@ resizedc(DC *dc, unsigned int w, unsigned int h) {
 /* 	dc->w = w; */
 /* 	dc->h = h; */
 /* 	dc->invert = False; */
-/* } */
+}
 
-/* int */
-/* textnw(DC *dc, const char *text, size_t len) { */
+int
+textnw(DC *dc, const char *text, size_t len) {
 /* 	if(dc->font.set) { */
 /* 		XRectangle r; */
 
@@ -352,6 +672,7 @@ resizedc(DC *dc, unsigned int w, unsigned int h) {
 /* 		return r.width; */
 /* 	} */
 /* 	return XTextWidth(dc->font.xfont, text, len); */
+	return 1;
 }
 
 int

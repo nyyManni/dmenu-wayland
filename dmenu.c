@@ -20,6 +20,8 @@
 #define MIN(a,b)                ((a) < (b) ? (a) : (b))
 #define MAX(a,b)                ((a) > (b) ? (a) : (b))
 
+#define HEIGHT 40 
+
 typedef struct Item Item;
 struct Item {
 	char *text;
@@ -529,10 +531,40 @@ readstdin(void) {
 	}
 }
 
+
+void pango_printf(cairo_t *cairo, const char *font,
+				  double scale, bool markup, const char *fmt, ...);
+
 void
 run(DC *dc) {
   
+	int loop = 0;
+	printf("loop %d\n", loop++);
+
+	/* cairo_set_line_width(dc->cairo, 1.0); */
+	/* cairo_move_to(dc->cairo, 100, 10); */
+	/* cairo_line_to(dc->cairo, 1000, 10); */
+	/* cairo_stroke(dc->cairo); */
+
+	/* pango_printf(dc->cairo, "DejaVu Sans Mono", 1.75, false, "%d", loop); */
+	/* wl_surface_commit(dc->surface); */
+
   while (wl_display_dispatch(dc->dpy) != -1) {
+	  /* printf("loop %d\n", loop++); */
+	  sleep(1);
+	cairo_set_operator(dc->cairo, CAIRO_OPERATOR_CLEAR);
+	cairo_paint(dc->cairo);
+	cairo_set_operator(dc->cairo, CAIRO_OPERATOR_SOURCE);
+	cairo_set_source_rgba(dc->cairo, 1.0, 0.0, 0.0, 0.5);
+	cairo_paint(dc->cairo);
+	cairo_move_to(dc->cairo, 40, 5);
+	cairo_set_source_rgba(dc->cairo, 0.0, 1.0, 0.0, 0.5);
+	pango_printf(dc->cairo, "DejaVu Sans Mono", 1.75, false, "%d", loop++);
+	wl_surface_attach(dc->surface, dc->buffer, 0, 0);
+	int32_t height = HEIGHT / ((double)dc->width / dc->logical_width);
+	wl_surface_damage(dc->surface, 0, 0, dc->logical_width, height);
+	/* wl_surface_damage(dc->surface, 20, 0, 20, 20); */
+	wl_surface_commit(dc->surface);
 		// This space intentionally left blank
   }
 /* 	XEvent ev; */

@@ -11,7 +11,7 @@ options:
 	@echo "LDFLAGS  = ${LDFLAGS}"
 	@echo "CC       = ${CC}"
 
-dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o
+dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o xdg-output-unstable-v1-protocol.o
 dmenu_path: dmenu_path.o
 
 .c.o: config.mk
