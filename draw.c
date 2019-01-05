@@ -23,7 +23,7 @@
 /* #define MIN(a, b)   ((a) < (b) ? (a) : (b)) */
 #define DEFFONT     "fixed"
 
-#define HEIGHT 40 
+/* #define HEIGHT 40  */
 
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
@@ -227,13 +227,16 @@ static void add_layer_surface(DC *dc) {
       dc->layer_shell, dc->surface, dc->output,
       ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "panel");
 
-  printf("logical width: %d\n", dc->logical_width);
-  int32_t height = HEIGHT / ((double)dc->width / dc->logical_width);
+  /* printf("logical width: %d\n", dc->logical_width); */
+  int32_t height = dc->panel_height / ((double)dc->width / dc->logical_width);
 
   zwlr_layer_surface_v1_set_size(dc->layer_surface, dc->logical_width, height);
   zwlr_layer_surface_v1_set_anchor(dc->layer_surface,
 								   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 								   ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+
+	zwlr_layer_surface_v1_set_exclusive_zone(dc->layer_surface, 10);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(dc->layer_surface, true);
 
   zwlr_layer_surface_v1_add_listener(dc->layer_surface, &layer_surface_listener,
                                      dc);
@@ -241,9 +244,9 @@ static void add_layer_surface(DC *dc) {
 }
 
 
-static void noop() {
-	// This space intentionally left blank
-}
+/* static void noop() { */
+/* 	// This space intentionally left blank */
+/* } */
 
 /* static void xdg_surface_handle_configure(void *data, */
 /* 		struct xdg_surface *xdg_surface, uint32_t serial) { */
@@ -283,7 +286,7 @@ static void output_geometry(void *data, struct wl_output *wl_output, int32_t x,
 static void output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
 		int32_t width, int32_t height, int32_t refresh) {
 	DC *dc = data;
-	printf("w: %d, h: %d\n", width, height);
+	/* printf("w: %d, h: %d\n", width, height); */
 	dc->width = width;
 	dc->height = height;
 }
@@ -297,7 +300,7 @@ static void output_scale(void *data, struct wl_output *wl_output,
 		int32_t factor) {
 	DC *dc = data;
 	dc->scale = factor;
-	printf("%d\n", factor);
+	/* printf("%d\n", factor); */
 	/* struct swaybar_output *output = data; */
 	/* output->scale = factor; */
 	/* if (output == output->bar->pointer.current) { */
@@ -319,9 +322,8 @@ static void xdg_output_handle_logical_position(void *data,
 
 static void xdg_output_handle_logical_size(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
-	// Who cares
 	DC *dc = data;
-	printf("logical size: %dx%d\n\n\n\n", width, height);
+	/* printf("logical size: %dx%d\n\n\n\n", width, height); */
 	dc->logical_width = width;
 	dc->logical_height = height;
 }
@@ -369,11 +371,44 @@ struct zxdg_output_v1_listener xdg_output_listener = {
 };
 
 static struct wl_seat *seat = NULL;
-static struct xkb_context *xkb_context;
-static struct xkb_keymap *keymap = NULL;
-static struct xkb_state *xkb_state = NULL;
+/* static struct xkb_context *xkb_context; */
+/* static struct xkb_keymap *keymap = NULL; */
+/* static struct xkb_state *xkb_state = NULL; */
 
-static void keyboard_keymap (void *data, struct wl_keyboard *keyboard, uint32_t format, int32_t fd, uint32_t size) {
+static void keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t format, int32_t fd, uint32_t size) {
+
+	DC *dc = data;
+	/* struct xkb_state *state; */
+	/* struct xkb_context *context; */
+	/* struct xkb_keymap *keymap; */
+
+	dc->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
+	/* struct swaylock_state *state = data; */
+	if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+		close(fd);
+		/* wlr_log(WLR_ERROR, "Unknown keymap format %d, aborting", format); */
+		exit(1);
+	}
+	char *map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+	if (map_shm == MAP_FAILED) {
+		close(fd);
+		/* wlr_log(WLR_ERROR, "Unable to initialize keymap shm, aborting"); */
+		exit(1);
+	}
+	dc->xkb_keymap = xkb_keymap_new_from_string(
+			dc->xkb_context, map_shm, XKB_KEYMAP_FORMAT_TEXT_V1, 0);
+	munmap(map_shm, size);
+	close(fd);
+	/* assert(keymap); */
+
+	dc->xkb_state = xkb_state_new(dc->xkb_keymap);
+	/* assert(xkb_state); */
+	/* xkb_keymap_unref(dc->xkb_keymap); */
+	/* xkb_state_unref(dc->xkb_state); */
+	/* keymap = keymap; */
+	/* state = xkb_state; */
 	/* char *keymap_string = mmap (NULL, size, PROT_READ, MAP_SHARED, fd, 0); */
 	/* xkb_keymap_unref (keymap); */
 	/* keymap = xkb_keymap_new_from_string (xkb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS); */
@@ -382,14 +417,73 @@ static void keyboard_keymap (void *data, struct wl_keyboard *keyboard, uint32_t 
 	/* xkb_state_unref (xkb_state); */
 	/* xkb_state = xkb_state_new (keymap); */
 }
-static void keyboard_enter (void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
 	
+static void keyboard_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	// Who cares
 }
-static void keyboard_leave (void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface) {
-	
+
+static void keyboard_leave(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface) {
+	// Who cares
 }
-static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
-	printf("key pressed\n");
+
+
+static void keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t _key_state) {
+	DC *dc = data;
+
+	enum wl_keyboard_key_state key_state = _key_state;
+	xkb_keysym_t sym = xkb_state_key_get_one_sym(dc->xkb_state, key + 8);
+	/* uint32_t keycode = key_state == WL_KEYBOARD_KEY_STATE_PRESSED ? key + 8 : 0; */
+	/* uint32_t codepoint = xkb_state_key_get_utf32(dc->xkb_state, keycode); */
+
+	/* memset(buf, 0, 20); */
+	/* utf8_encode(str, codepoint); */
+	char buf[8];
+
+	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+		/* printf("key pressed\n"); */
+		switch (sym) {
+		case XKB_KEY_KP_Enter: /* fallthrough */
+		case XKB_KEY_Return:
+			printf("submit\n");
+			dc->running = false;
+			break;
+		case XKB_KEY_Escape:
+			printf("escaping...\n");
+			dc->running = false;
+			break;
+		/* case XKB_KEY_Shift_L: */
+		/* case XKB_KEY_Shift_R: */
+		/* case XKB_KEY_Control_L: */
+		/* case XKB_KEY_Control_R: */
+		/* case XKB_KEY_Meta_L: */
+		/* case XKB_KEY_Meta_R: */
+		/* case XKB_KEY_Alt_L: */
+		/* case XKB_KEY_Alt_R: */
+		/* case XKB_KEY_Super_L: */
+		/* case XKB_KEY_Super_R: */
+		/* 	// Ignore modifiers here. */
+		/* 	break; */
+		case XKB_KEY_c:
+			if (dc->control) {
+				printf("cancel\n");
+				dc->running = false;
+				break;
+			}
+			/* fallthrough */
+		default:
+			/* dc->running = false; */
+			/* printf("%lu", strlen(str)); */
+			if (xkb_keysym_to_utf8(sym, buf, 8)) {
+				printf("%s\n", buf);
+				/* printf("modifier\n"); */
+			}
+		}
+
+		/* swaylock_handle_key(state, sym, codepoint); */
+	}
 	/* if (state == WL_KEYBOARD_KEY_STATE_PRESSED) { */
 	/* 	xkb_keysym_t keysym = xkb_state_key_get_one_sym (xkb_state, key+8); */
 	/* 	uint32_t utf32 = xkb_keysym_to_utf32 (keysym); */
@@ -408,23 +502,62 @@ static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t ser
 	/* 		printf ("the key %s was pressed\n", name); */
 	/* 	} */
 	/* } */
+	draw(dc);
+	/* dc->running = false; */
 }
-static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
-	/* xkb_state_update_mask (xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group); */
-}
-static struct wl_keyboard_listener keyboard_listener = {&keyboard_keymap, &keyboard_enter, &keyboard_leave, &keyboard_key, &keyboard_modifiers};
 
-static void seat_capabilities (void *data, struct wl_seat *seat, uint32_t capabilities) {
-	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
+		int32_t rate, int32_t delay) {
+	// TODO
+}
+
+static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard,
+								uint32_t serial, uint32_t mods_depressed,
+								uint32_t mods_latched, uint32_t mods_locked,
+								uint32_t group) {
+	/* xkb_state_update_mask (xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group); */
+	DC *dc = data;
+	/* printf("keyboard modifiers\n"); */
+	xkb_state_update_mask(dc->xkb_state,
+		mods_depressed, mods_latched, mods_locked, 0, 0, group);
+	/* state->xkb.caps_lock = xkb_state_mod_name_is_active(state->xkb.state, */
+	/* 	XKB_MOD_NAME_CAPS, XKB_STATE_MODS_LOCKED); */
+	dc->control = xkb_state_mod_name_is_active(dc->xkb_state,
+		XKB_MOD_NAME_CTRL,
+		XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
+}
+/* static struct wl_keyboard_listener keyboard_listener = {&keyboard_keymap, &keyboard_enter, &keyboard_leave, &keyboard_key, &keyboard_modifiers}; */
+static const struct wl_keyboard_listener keyboard_listener = {
+	.keymap = keyboard_keymap,
+	.enter = keyboard_enter,
+	.leave = keyboard_leave,
+	.key = keyboard_key,
+	.modifiers = keyboard_modifiers,
+	.repeat_info = keyboard_repeat_info,
+};
+
+static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
+		enum wl_seat_capability caps) {
+	DC *dc = data;
+	if (caps & WL_SEAT_CAPABILITY_POINTER) {
 		struct wl_pointer *pointer = wl_seat_get_pointer (seat);
 		/* wl_pointer_add_listener (pointer, &pointer_listener, NULL); */
 	}
-	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
-		struct wl_keyboard *keyboard = wl_seat_get_keyboard (seat);
-		wl_keyboard_add_listener (keyboard, &keyboard_listener, NULL);
+	if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
+		dc->kbd = wl_seat_get_keyboard (seat);
+		wl_keyboard_add_listener (dc->kbd, &keyboard_listener, dc);
 	}
 }
-static struct wl_seat_listener seat_listener = {&seat_capabilities};
+/* static struct wl_seat_listener seat_listener = {&seat_capabilities}; */
+static void seat_handle_name(void *data, struct wl_seat *wl_seat,
+		const char *name) {
+	// Who cares
+}
+
+const struct wl_seat_listener seat_listener = {
+	.capabilities = seat_handle_capabilities,
+	.name = seat_handle_name,
+};
 
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
@@ -434,7 +567,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		dc->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
 		seat = wl_registry_bind (registry, name, &wl_seat_interface, 1);
-		wl_seat_add_listener (seat, &seat_listener, NULL);
+		wl_seat_add_listener (seat, &seat_listener, dc);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		dc->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 
@@ -483,7 +616,7 @@ static const struct wl_registry_listener registry_listener = {
 static struct wl_buffer *create_buffer();
 
 DC *
-initdc(void) {
+initdc(int32_t height) {
 	DC *dc;
 
 	if(!setlocale(LC_CTYPE, ""))
@@ -494,6 +627,8 @@ initdc(void) {
 	if(!(dc->dpy = wl_display_connect(NULL)))
 		eprintf("cannot open display\n");
 
+	dc->panel_height = height;
+	dc->control = false;
 
 	struct wl_registry *registry = wl_display_get_registry(dc->dpy);
 	wl_registry_add_listener(registry, &registry_listener, dc);
@@ -517,7 +652,7 @@ initdc(void) {
 	add_layer_surface(dc);
 
 
-	printf("monitor width: %d\n", dc->width);
+	/* printf("monitor width: %d\n", dc->width); */
 
 	wl_surface_set_buffer_scale(dc->surface, 2.0);
 	wl_surface_commit(dc->surface);
@@ -532,14 +667,14 @@ initdc(void) {
 	/* dc->font.xfont = NULL; */
 	/* dc->font.set = NULL; */
 	/* dc->canvas = None; */
-	printf("exiting init\n");
+	/* printf("exiting init\n"); */
 	return dc;
 }
 
 static void buffer_release(void *data, struct wl_buffer *wl_buffer) {
 	/* struct pool_buffer *buffer = data; */
 	/* buffer->busy = false; */
-	printf("released buffer\n");
+	/* printf("released buffer\n"); */
 }
 
 static const struct wl_buffer_listener buffer_listener = {
@@ -549,20 +684,20 @@ static const struct wl_buffer_listener buffer_listener = {
 static struct wl_buffer *create_buffer(DC *dc) {
 	int width = dc->width;
 	int height = dc->height;
-	printf("w: %d, h: %d\n", width, height);
-	printf("w: %d, h: %d (logical)\n", dc->logical_width, dc->logical_height);
-	printf("scale factor %f\n", 2.0 / 1.75);
-	printf("scale_coeff: %f\n", (double)dc->width / dc->logical_width);
+	/* printf("w: %d, h: %d\n", width, height); */
+	/* printf("w: %d, h: %d (logical)\n", dc->logical_width, dc->logical_height); */
+	/* printf("scale factor %f\n", 2.0 / 1.75); */
+	/* printf("scale_coeff: %f\n", (double)dc->width / dc->logical_width); */
 
 	/* Oh my... */
 	double factor = dc->scale / ((double)dc->width / dc->logical_width);
 	width = dc->width * factor;
-	printf("width: %d\n", width);
+	/* printf("width: %d\n", width); */
 	
 	/* width = 3840 * (2.0 / 1.75); */
 	/* width = 2194 * 1.75; */
 	/* width = 2194 * 3;  */
-	height = HEIGHT * factor;
+	height = dc->panel_height * factor;
 
 
 
@@ -607,6 +742,23 @@ static struct wl_buffer *create_buffer(DC *dc) {
 
 
 	return buffer;
+}
+void draw(DC *dc) {
+	static int loop = 0;
+	cairo_set_operator(dc->cairo, CAIRO_OPERATOR_CLEAR);
+	cairo_paint(dc->cairo);
+	cairo_set_operator(dc->cairo, CAIRO_OPERATOR_SOURCE);
+	cairo_set_source_rgba(dc->cairo, 1.0, 0.0, 0.0, 0.5);
+	cairo_paint(dc->cairo);
+	cairo_move_to(dc->cairo, 40, 8);
+	cairo_set_source_rgba(dc->cairo, 0.0, 1.0, 0.0, 0.5);
+
+	pango_printf(dc->cairo, "DejaVu Sans Mono", 1.75, false, "%d", loop++);
+	wl_surface_attach(dc->surface, dc->buffer, 0, 0);
+	int32_t height = dc->panel_height / ((double)dc->width / dc->logical_width);
+	wl_surface_damage(dc->surface, 0, 0, dc->logical_width, height);
+	/* wl_surface_damage(dc->surface, 20, 0, 20, 20); */
+	wl_surface_commit(dc->surface);
 }
 
 void
