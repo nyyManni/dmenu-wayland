@@ -188,12 +188,12 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			cursor = len;
 			break;
 		}
-		while(next) {
-			sel = curr = next;
-			/* calcoffsets(); */
-		}
-		while(sel && sel->right)
-			sel = sel->right;
+		//while(next) {
+			//sel = curr = next;
+			///* calcoffsets(); */
+		//}
+		//while(sel && sel->right)
+			//sel = sel->right;
 		break;
 	case XKB_KEY_Home:
 		if(sel == matches) {
