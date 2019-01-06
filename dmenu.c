@@ -40,9 +40,7 @@ static uint32_t color_selected_fg = 0xeeeeeeff;
 static int32_t panel_height = 40;
 
 static void appenditem(Item *item, Item **list, Item **last);
-static void drawmenu(void);
 static char *fstrstr(const char *s, const char *sub);
-static void grabkeyboard(void);
 static void insert(const char *s, ssize_t n);
 static void match(void);
 static size_t nextrune(int incr);
@@ -55,7 +53,6 @@ static char text[BUFSIZ];
 static char text_[BUFSIZ];
 static int itemcount = 0;
 static int lines = 0;
-static int monitor = -1;
 static int timeout = 3;
 static size_t cursor = 0;
 static const char *prompt = NULL;
