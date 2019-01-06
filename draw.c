@@ -119,7 +119,7 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	height *= panel->monitor.scale;
 
 	/* TODO: Figure out why needed? */
-	height += 1;
+	/* height += 1; */
 
 	if (panel->draw) {
 		panel->draw(cairo, width, height, panel->monitor.scale);

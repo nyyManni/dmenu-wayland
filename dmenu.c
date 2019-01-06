@@ -38,6 +38,14 @@ typedef enum {
     CENTRE
 } TextPosition;
 
+static uint32_t color_bg = 0x222222ff;
+static uint32_t color_fg = 0xbbbbbbff;
+static uint32_t color_prompt_bg = 0x222222ff;
+static uint32_t color_prompt_fg = 0xbbbbbbff;
+static uint32_t color_selected_bg = 0x005577ff;
+static uint32_t color_selected_fg = 0xeeeeeeff;
+
+
 static void appenditem(Item *item, Item **list, Item **last);
 static void calcoffsets(void);
 static void drawmenu(void);
@@ -66,7 +74,7 @@ static int monitor = -1;
 static int promptw;
 static int timeout = 3;
 static size_t cursor = 0;
-static const char *font = NULL;
+/* static const char *font = NULL; */
 static const char *prompt = NULL;
 static const char *normbgcolor = "#222222";
 static const char *normfgcolor = "#bbbbbb";
@@ -85,6 +93,7 @@ static Item *items = NULL;
 static Item *matches, *sel;
 static Item *prev, *curr, *next;
 /* static Window root, win; */
+char *font = "DejaVu Sans Mono";
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 
@@ -108,6 +117,15 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 
 	if (ctrl) {
 		switch (xkb_keysym_to_lower(sym)) {
+		case XKB_KEY_f:
+			sym = XKB_KEY_Right;
+			break;
+		case XKB_KEY_b:
+			sym = XKB_KEY_Left;
+			break;
+		case XKB_KEY_h:
+			sym = XKB_KEY_BackSpace;
+			break;
 		case XKB_KEY_g:
 		case XKB_KEY_c:
 			if (ctrl) {
@@ -121,6 +139,8 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 	case XKB_KEY_Return:
     /*     handle_return((sel && !(ev->state & ShiftMask)) ? sel->text : text); */
 		dmenu_close(panel);
+		if (sel)
+			printf("%s", sel->text);
 		break;
 	case XKB_KEY_Escape:
 		dmenu_close(panel);
@@ -138,27 +158,33 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		/* 	// Ignore modifiers here. */
 		/* 	break; */
 	case XKB_KEY_Left:
-		if(cursor > 0 && (!sel || !sel->left || lines > 0)) {
+		if(cursor && (!sel || !sel->left || lines > 0)) {
 			cursor = nextrune(-1);
-			break;
+		} else if (!cursor) {
+			if (sel->left) sel = sel->left;
 		}
-		else if(lines > 0)
-			return;
+
+		/* else if(lines > 0) */
+		/* 	return; */
+		break;
 	case XKB_KEY_Right:
-		if(cursor < len) {
+		if (cursor < len) {
 			cursor = nextrune(+1);
-			break;
+		} else if (cursor == len) {
+			if (sel->right) sel = sel->right;
 		}
-		else if(lines > 0)
-			return;
+		/* else if(lines > 0) */
+		/* 	return; */
+		break;
 	case XKB_KEY_BackSpace:
-		if(cursor > 0)
+		if (cursor > 0)
 			insert(NULL, nextrune(-1) - cursor);
 		break;
 	case XKB_KEY_Delete:
-		if(cursor == len)
+		if (cursor == len)
 			return;
 		cursor = nextrune(+1);
+		break;
 	case XKB_KEY_Tab:
 		if(!sel) return;
 		strncpy(text, sel->text, sizeof text);
@@ -170,7 +196,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			insert(buf, strnlen(buf, 8));
 		}
 	}
-	printf("%s\n", text);
+	/* printf("%s\n", text); */
 
 	/* char buf[32]; */
 	/* size_t len; */
@@ -296,15 +322,23 @@ void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 			(color >> (0*8) & 0xFF) / 255.0);
 }
 
-int32_t draw_text(cairo_t *cairo, int32_t height, char *str, int32_t x, int32_t scale,
-				  uint32_t foreground_color, uint32_t background_color) {
+int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, char *str,
+				  int32_t x, int32_t scale, uint32_t
+				  foreground_color, uint32_t background_color) {
 	
-	char *font = "DejaVu Sans Mono";
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
 	int32_t text_y = (height / 2.0) - (text_height / 2.0);
 	int32_t padding = text_y * scale;
+
+	if (x + padding + text_width + 20 * scale > width) {
+
+		cairo_move_to(cairo, width - 20 * scale, text_y);
+		pango_printf(cairo, font, scale, false, ">");
+
+		return width;
+	}
 
 	if (background_color) {
 		cairo_set_source_u32(cairo, background_color);
@@ -324,28 +358,75 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	
 	int32_t x = 0;
 
-	cairo_set_source_rgba(cairo, 0.0, 0.0, 1.0, 0.5);
+	cairo_set_source_u32(cairo, color_bg);
 	cairo_paint(cairo);
 
 	if (prompt)
-		x = draw_text(cairo, height, prompt, x, scale, 0xffffffff, 0x000000ff);
+		x = draw_text(cairo, width, height, prompt, x, scale, color_prompt_fg,
+					  color_prompt_bg);
 
-	cairo_set_source_u32(cairo, 0x666666);
+	cairo_set_source_u32(cairo, color_prompt_bg);
 	cairo_rectangle(cairo, x, 0, 400, height);
 	cairo_fill(cairo);
 
-	int32_t text_pos = x;
-	x = draw_text(cairo, height, text, x, scale, 0xffffffff, 0);
+	draw_text(cairo, width, height, text, x, scale, color_prompt_fg, 0);
 
-	/* draw cursor */
-	strncpy(text_, text, cursor);
-	int32_t text_width, text_height;
-	get_text_size(cairo, font, &text_width, &text_height,
-				  NULL, scale, false, text_);
-	/* cairo_rectangle() */
-	printf("cursor: %lu\n", cursor);
 
-	/* /\* printf("%d\n", width); *\/ */
+	{
+		/* draw cursor */
+		memset(text_, 0, BUFSIZ);
+		strncpy(text_, text, cursor);
+		int32_t text_width, text_height;
+		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
+					  false, text_);
+		int32_t text_y = (height / 2.0) - (text_height / 2.0);
+		int32_t padding = text_y * scale;
+		cairo_rectangle(cairo, x + padding + text_width, text_y,
+						scale, text_height);
+		cairo_fill(cairo);
+	}
+
+	x += 400;
+
+	if (matches) {
+		/* draw matches */
+
+		Item *item;
+		for (item = matches; item; item = item->right) {
+			uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
+			uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
+			/* uint32_t bg_color = curr == item ? 0x333333ff : 0x000000ff; */
+			/* uint32_t fg_color = curr == item ? 0x333333ff : 0x000000ff; */
+			if (x < width)
+				x = draw_text(cairo, width, height, item->text, x, scale,
+							  fg_color, bg_color);
+		}
+
+
+		/* for (item = curr; item != next; item = item->right) { */
+		/* 	printf("%s\n", item->text); */
+		/* } */
+	}
+
+        /* } else if(matches) { */
+        /*     dc->x += dc->w; */
+        /*     if(curr->left) { */
+        /*         dc->w = textw(dc, "<"); */
+        /*         drawtext(dc, "<", normcol); */
+        /*         dc->x += dc->w; */
+        /*     } */
+        /*     for(item = curr; item != next; item = item->right) { */
+        /*         dc->w = MIN(textw(dc, item->text), mw - dc->x - textw(dc, ">")); */
+        /*         drawtext(dc, item->text, (item == sel) ? selcol : normcol); */
+        /*         dc->x += dc->w; */
+        /*     } */
+        /*     dc->w = textw(dc, ">"); */
+        /*     dc->x = mw - dc->w; */
+        /*     if(next) { */
+        /*         drawtext(dc, ">", normcol); */
+        /*     } */
+        /* /\* printf("%d\n", width); *\/ */
+
 	/* cairo_set_source_rgba(cairo, 1.0, 0.0, 0.0, 0.5); */
 	/* cairo_rectangle(cairo, 0, 0, text_width + 2 * padding, height); */
 	/* /\* cairo_rectangle(cairo, width - 300, 0, 300, height); *\/ */
@@ -429,6 +510,7 @@ main(int argc, char *argv[]) {
     }
 	/* setup(); */
     /* run(dc); */
+	match();
 
 	/* blocks */
 	dmenu_show(&dmenu);
