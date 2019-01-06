@@ -582,7 +582,10 @@ void dmenu_show(struct dmenu_panel *dmenu) {
 	dmenu->running = true;
 	while (wl_display_dispatch(dmenu->monitor.display) != -1 && dmenu->running) {
 		// This space intentionally left blank
-  }
+	}
+	/* dmenu_close called */
+	wl_display_disconnect(dmenu->monitor.display);
+
 }
 void dmenu_close(struct dmenu_panel *dmenu) {
 	dmenu->running = false;

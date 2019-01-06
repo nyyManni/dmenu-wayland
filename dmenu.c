@@ -23,7 +23,7 @@
 #define MIN(a,b)                ((a) < (b) ? (a) : (b))
 #define MAX(a,b)                ((a) > (b) ? (a) : (b))
 
-#define HEIGHT 50 
+#define HEIGHT 40 
 
 typedef struct Item Item;
 struct Item {
@@ -40,8 +40,10 @@ typedef enum {
 
 static uint32_t color_bg = 0x222222ff;
 static uint32_t color_fg = 0xbbbbbbff;
-static uint32_t color_prompt_bg = 0x222222ff;
-static uint32_t color_prompt_fg = 0xbbbbbbff;
+static uint32_t color_input_bg = 0x222222ff;
+static uint32_t color_input_fg = 0xbbbbbbff;
+static uint32_t color_prompt_bg = 0x005577ff;
+static uint32_t color_prompt_fg = 0xeeeeeeff;
 static uint32_t color_selected_bg = 0x005577ff;
 static uint32_t color_selected_fg = 0xeeeeeeff;
 
@@ -117,6 +119,12 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 
 	if (ctrl) {
 		switch (xkb_keysym_to_lower(sym)) {
+		case XKB_KEY_a:
+			sym = XKB_KEY_Home;
+			break;
+		case XKB_KEY_e:
+			sym = XKB_KEY_End;
+			break;
 		case XKB_KEY_f:
 			sym = XKB_KEY_Right;
 			break;
@@ -125,6 +133,9 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			break;
 		case XKB_KEY_h:
 			sym = XKB_KEY_BackSpace;
+			break;
+		case XKB_KEY_j:
+			sym = XKB_KEY_Return;
 			break;
 		case XKB_KEY_g:
 		case XKB_KEY_c:
@@ -140,7 +151,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
     /*     handle_return((sel && !(ev->state & ShiftMask)) ? sel->text : text); */
 		dmenu_close(panel);
 		if (sel)
-			printf("%s", sel->text);
+			fputs(sel->text, stdout);
 		break;
 	case XKB_KEY_Escape:
 		dmenu_close(panel);
@@ -158,24 +169,41 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		/* 	// Ignore modifiers here. */
 		/* 	break; */
 	case XKB_KEY_Left:
-		if(cursor && (!sel || !sel->left || lines > 0)) {
+		if(cursor && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
-		} else if (!cursor) {
-			if (sel->left) sel = sel->left;
+		} if (sel && sel->left) {
+			sel = sel->left;
 		}
-
-		/* else if(lines > 0) */
-		/* 	return; */
 		break;
 	case XKB_KEY_Right:
 		if (cursor < len) {
 			cursor = nextrune(+1);
 		} else if (cursor == len) {
-			if (sel->right) sel = sel->right;
+			if (sel && sel->right) sel = sel->right;
 		}
-		/* else if(lines > 0) */
-		/* 	return; */
 		break;
+
+	case XKB_KEY_End:
+		if(cursor < len) {
+			cursor = len;
+			break;
+		}
+		while(next) {
+			sel = curr = next;
+			/* calcoffsets(); */
+		}
+		while(sel && sel->right)
+			sel = sel->right;
+		break;
+	case XKB_KEY_Home:
+		if(sel == matches) {
+			cursor = 0;
+			break;
+		}
+		sel = curr = matches;
+		/* calcoffsets(); */
+		break;
+
 	case XKB_KEY_BackSpace:
 		if (cursor > 0)
 			insert(NULL, nextrune(-1) - cursor);
@@ -324,15 +352,15 @@ void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 
 int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, char *str,
 				  int32_t x, int32_t scale, uint32_t
-				  foreground_color, uint32_t background_color) {
+				  foreground_color, uint32_t background_color, int32_t padding) {
 	
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
 	int32_t text_y = (height / 2.0) - (text_height / 2.0);
-	int32_t padding = text_y * scale;
+	/* int32_t padding = pad ? MAX(text_y * scale, 10 * scale) : 0; */
 
-	if (x + padding + text_width + 20 * scale > width) {
+	if (x + padding * scale + text_width + 30 * scale > width) {
 
 		cairo_move_to(cairo, width - 20 * scale, text_y);
 		pango_printf(cairo, font, scale, false, ">");
@@ -342,16 +370,16 @@ int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, char *str,
 
 	if (background_color) {
 		cairo_set_source_u32(cairo, background_color);
-		cairo_rectangle(cairo, x, 0, text_width + 2 * padding, height);
+		cairo_rectangle(cairo, x, 0, text_width + 2 * padding * scale, height);
 		cairo_fill(cairo);
 	}
 
-	cairo_move_to(cairo, x + padding, text_y);
+	cairo_move_to(cairo, x + padding * scale, text_y);
 	cairo_set_source_u32(cairo, foreground_color);
 
 	pango_printf(cairo, font, scale, false, str);
 
-	return x + text_width + 2 * padding;
+	return x + text_width + 2 * padding * scale;
 }
 
 void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
@@ -363,13 +391,13 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 
 	if (prompt)
 		x = draw_text(cairo, width, height, prompt, x, scale, color_prompt_fg,
-					  color_prompt_bg);
+					  color_prompt_bg, 6);
 
-	cairo_set_source_u32(cairo, color_prompt_bg);
-	cairo_rectangle(cairo, x, 0, 400, height);
+	cairo_set_source_u32(cairo, color_input_bg);
+	cairo_rectangle(cairo, x, 0, 300 * scale, height);
 	cairo_fill(cairo);
 
-	draw_text(cairo, width, height, text, x, scale, color_prompt_fg, 0);
+	draw_text(cairo, width, height, text, x, scale, color_input_fg, 0, 6);
 
 
 	{
@@ -380,13 +408,14 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 					  false, text_);
 		int32_t text_y = (height / 2.0) - (text_height / 2.0);
-		int32_t padding = text_y * scale;
+		/* int32_t padding = MAX(text_y * scale, 10 * scale); */
+		int32_t padding = 6 * scale;
 		cairo_rectangle(cairo, x + padding + text_width, text_y,
 						scale, text_height);
 		cairo_fill(cairo);
 	}
 
-	x += 400;
+	x += 300 * scale;
 
 	if (matches) {
 		/* draw matches */
@@ -399,7 +428,7 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 			/* uint32_t fg_color = curr == item ? 0x333333ff : 0x000000ff; */
 			if (x < width)
 				x = draw_text(cairo, width, height, item->text, x, scale,
-							  fg_color, bg_color);
+							  fg_color, bg_color, 10);
 		}
 
 
@@ -519,7 +548,7 @@ main(int argc, char *argv[]) {
 	/* draw(dc); */
 
 
-	return EXIT_FAILURE;  /* should not reach */
+	return EXIT_SUCCESS;
 }
 
 void
