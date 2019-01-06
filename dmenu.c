@@ -297,7 +297,7 @@ main(int argc, char *argv[]) {
 	progname = "dmenu";
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
-			fputs("dmenu-"VERSION", © 2006-2011 dmenu engineers, see LICENSE for details\n", stdout);
+			fputs("dmenu-wl-"VERSION", © 2006-2018 dmenu engineers, see LICENSE for details\n", stdout);
 			exit(EXIT_SUCCESS);
 		}
 		else if(!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
