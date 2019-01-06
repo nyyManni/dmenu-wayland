@@ -1,6 +1,9 @@
 /* See LICENSE file for copyright and license details. */
 #include <locale.h>
+#include <errno.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,7 +15,6 @@
 #include <pango/pangocairo.h>
 #include <xkbcommon/xkbcommon.h>
 #include "draw.h"
-#include "shm.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
@@ -23,6 +25,48 @@
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
 
+static void randname(char *buf) {
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	long r = ts.tv_nsec;
+	for (int i = 0; i < 6; ++i) {
+		buf[i] = 'A'+(r&15)+(r&16)*2;
+		r >>= 5;
+	}
+}
+
+static int anonymous_shm_open(void) {
+	char name[] = "/dmenu-XXXXXX";
+	int retries = 100;
+
+	do {
+		randname(name + strlen(name) - 6);
+
+		--retries;
+		// shm_open guarantees that O_CLOEXEC is set
+		int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
+		if (fd >= 0) {
+			shm_unlink(name);
+			return fd;
+		}
+	} while (retries > 0 && errno == EEXIST);
+
+	return -1;
+}
+
+int create_shm_file(off_t size) {
+	int fd = anonymous_shm_open();
+	if (fd < 0) {
+		return fd;
+	}
+
+	if (ftruncate(fd, size) < 0) {
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
 
 PangoLayout *get_pango_layout(cairo_t *cairo, const char *font,
 		const char *text, double scale, bool markup) {

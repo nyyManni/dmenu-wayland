@@ -11,7 +11,7 @@ options:
 	@echo "LDFLAGS  = ${LDFLAGS}"
 	@echo "CC       = ${CC}"
 
-dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o xdg-output-unstable-v1-protocol.o
+dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o xdg-output-unstable-v1-protocol.o
 dmenu-wl_path: dmenu_path.o
 
 .c.o: config.mk
@@ -26,7 +26,7 @@ dmenu-wl dmenu-wl_path:
 
 clean:
 	@echo cleaning
-	@rm -f dmenu-wl dmenu.o draw.o xdg-shell-protocol.o shm.o wlr-layer-shell-unstable-v1-protocol.o dmenu-wl_path dmenu_path.o dmenu-${VERSION}.tar.gz
+	@rm -f dmenu-wl dmenu.o draw.o xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o dmenu-wl_path dmenu_path.o dmenu-${VERSION}.tar.gz
 
 dist: clean
 	@echo creating dist tarball
