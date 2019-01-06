@@ -20,8 +20,6 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 
-#define DEFFONT     "fixed"
-
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
 
