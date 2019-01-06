@@ -9,6 +9,7 @@ Missing dmenu (for X) features:
 - Handling pagination
 - Vertical layout
 - Return-early
+- Shift-Enter handling
 
 Other TODO items:
 - Cleaner exiting
