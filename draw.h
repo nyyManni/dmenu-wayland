@@ -63,7 +63,7 @@ struct dmenu_panel {
 	bool running;
 };
 
-void dmenu_init_panel(struct dmenu_panel *, int32_t);
+void dmenu_init_panel(struct dmenu_panel *, int32_t, bool);
 void dmenu_draw(struct dmenu_panel *);
 void dmenu_show(struct dmenu_panel *);
 void dmenu_close(struct dmenu_panel *);

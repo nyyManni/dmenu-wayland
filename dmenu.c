@@ -528,7 +528,7 @@ main(int argc, char *argv[]) {
     }
 
 	struct dmenu_panel dmenu;
-	dmenu_init_panel(&dmenu, HEIGHT);
+	dmenu_init_panel(&dmenu, HEIGHT, !topbar);
 
 	dmenu.on_keyevent = keypress;
 	dmenu.draw = draw;

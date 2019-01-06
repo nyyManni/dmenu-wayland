@@ -426,7 +426,7 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 
-void dmenu_init_panel(struct dmenu_panel *panel, int32_t height) {
+void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	if(!setlocale(LC_CTYPE, ""))
 		weprintf("no locale support\n");
 
@@ -463,7 +463,8 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height) {
 								   panel->monitor.logical_width, _height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
-									 ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
+									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
 
 	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
