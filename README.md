@@ -56,8 +56,8 @@ Display newline-separated input stdin as a menubar
     -l,  --lines LINES                dmenu lists items vertically, within the
                                       given number of lines
     -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen
-	                                  (does nothing on wayland, supported for
-									  backwards compatibility)
+                                      (does nothing on wayland, supported for
+                                      backwards compatibility)
     -p,  --prompt  PROMPT             prompt to be displayed to the left of the
                                       input field
     -po, --prompt-only  PROMPT        same as -p but don't wait for stdin
