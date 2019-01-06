@@ -1,14 +1,18 @@
 dmenu-wl - dynamic menu
-====================
+=======================
 dmenu-wl is an efficient dynamic menu for wayland.
 
-TODO (missing dmenu features)
------------------------------
+TODO
+----
+Missing dmenu (for X) features:
 - Echo (non-interactive use)
 - Handling pagination
 - Vertical layout
 - Return-early
+
+Other TODO items:
 - Cleaner exiting
+- Generate protocol files with `wayland-scanner`
 
 Requirements
 ------------
@@ -23,7 +27,6 @@ Required libraries (and headers):
 
 Requires a compositor which implements wlr-layer-shell and xdg-output
 protocols. Tested with sway 1.0-beta2 (wlroots).
-
 
 Installation
 ------------
