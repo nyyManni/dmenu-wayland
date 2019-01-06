@@ -487,6 +487,8 @@ usage(void) {
     printf("  -l,  --lines LINES                dmenu lists items vertically, within the\n");
     printf("                                      given number of lines\n");
     printf("  -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen\n");
+    printf("                                      (does nothing on wayland, supported for)\n");
+    printf("                                      compatibility with dmenu.\n");
     printf("  -p,  --prompt  PROMPT             prompt to be displayed to the left of the\n");
     printf("                                      input field\n");
     printf("  -po, --prompt-only  PROMPT        same as -p but don't wait for stdin\n");

@@ -2,10 +2,27 @@ dmenu-wl - dynamic menu
 ====================
 dmenu-wl is an efficient dynamic menu for wayland.
 
+TODO (missing dmenu features)
+-----------------------------
+- Echo (non-interactive use)
+- Handling pagination
+- Vertical layout
+- Return-early
+- Cleaner exiting
 
 Requirements
 ------------
-In order to build dmenu you need the wayland-client library and headers.
+Required libraries (and headers):
+- wayland-client
+- cairo
+- pango-1.0
+- pangocairo-1.0
+- xkbcommon
+- glib-2.0
+- gobject-2.0
+
+Requires a compositor which implements wlr-layer-shell and xdg-output
+protocols. Tested with sway 1.0-beta2 (wlroots).
 
 
 Installation
@@ -19,7 +36,7 @@ Afterwards enter the following command to build and install dmenu-wl
     make clean install
 
 
-Running dmenu
+Running dmenu-wl
 -------------
 See the man page for details.
 
@@ -39,6 +56,8 @@ Display newline-separated input stdin as a menubar
     -l,  --lines LINES                dmenu lists items vertically, within the
                                       given number of lines
     -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen
+	                                  (does nothing on wayland, supported for
+									  backwards compatibility)
     -p,  --prompt  PROMPT             prompt to be displayed to the left of the
                                       input field
     -po, --prompt-only  PROMPT        same as -p but don't wait for stdin
