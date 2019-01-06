@@ -18,11 +18,7 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 
-/* #define MAX(a, b)   ((a) > (b) ? (a) : (b)) */
-/* #define MIN(a, b)   ((a) < (b) ? (a) : (b)) */
 #define DEFFONT     "fixed"
-
-/* #define HEIGHT 40  */
 
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
@@ -146,56 +142,6 @@ cairo_subpixel_order_t to_cairo_subpixel_order(enum wl_output_subpixel subpixel)
 	return CAIRO_SUBPIXEL_ORDER_DEFAULT;
 }
 
-/* struct xdg_toplevel *xdg_toplevel; */
-/* static Bool loadfont(DC *dc, const char *fontstr); */
-
-/* void */
-/* drawrect(DC *dc, int x, int y, unsigned int w, unsigned int h, Bool fill, unsigned long color) { */
-/* 	XRectangle r = { dc->x + x, dc->y + y, w, h }; */
-
-/* 	if(!fill) { */
-/* 		r.width -= 1; */
-/* 		r.height -= 1; */
-/* 	} */
-/* 	XSetForeground(dc->dpy, dc->gc, color); */
-/* 	(fill ? XFillRectangles : XDrawRectangles)(dc->dpy, dc->canvas, dc->gc, &r, 1); */
-/* } */
-
-
-/* void */
-/* drawtext(DC *dc, const char *text, unsigned long col[ColLast]) { */
-/* /\* 	char buf[256]; *\/ */
-/* /\* 	size_t n, mn; *\/ */
-
-/* /\* 	/\\* shorten text if necessary *\\/ *\/ */
-/* /\* 	n = strlen(text); *\/ */
-/* /\* 	for(mn = MIN(n, sizeof buf); textnw(dc, text, mn) > dc->w - dc->font.height/2; mn--) *\/ */
-/* /\* 		if(mn == 0) *\/ */
-/* /\* 			return; *\/ */
-/* /\* 	memcpy(buf, text, mn); *\/ */
-/* /\* 	if(mn < n) *\/ */
-/* /\* 		for(n = MAX(mn-3, 0); n < mn; buf[n++] = '.'); *\/ */
-
-/* /\* 	drawrect(dc, 0, 0, dc->w, dc->h, True, BG(dc, col)); *\/ */
-/* /\* 	drawtextn(dc, buf, mn, col); *\/ */
-/* } */
-
-/* void */
-/* drawtextn(DC *dc, const char *text, size_t n, unsigned long col[ColLast]) { */
-/* 	int x, y; */
-
-/* 	x = dc->x + dc->font.height/2; */
-/* 	y = dc->y + dc->font.ascent+1 + dc->text_offset_y; */
-
-/* 	XSetForeground(dc->dpy, dc->gc, FG(dc, col)); */
-/* 	if(dc->font.set) */
-/* 		XmbDrawString(dc->dpy, dc->canvas, dc->font.set, dc->gc, x, y, text, n); */
-/* 	else { */
-/* 		XSetFont(dc->dpy, dc->gc, dc->font.xfont->fid); */
-/* 		XDrawString(dc->dpy, dc->canvas, dc->gc, x, y, text, n); */
-/* 	} */
-/* } */
-
 void
 eprintf(const char *fmt, ...) {
 	va_list ap;
@@ -207,42 +153,14 @@ eprintf(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-/* void */
-/* freedc(DC *dc) { */
-/* 	/\* if(dc->font.set) *\/ */
-/* 	/\* 	XFreeFontSet(dc->dpy, dc->font.set); *\/ */
-/* 	/\* if(dc->font.xfont) *\/ */
-/* 	/\* 	XFreeFont(dc->dpy, dc->font.xfont); *\/ */
-/* 	/\* if(dc->canvas) *\/ */
-/* 	/\* 	XFreePixmap(dc->dpy, dc->canvas); *\/ */
-/* 	/\* XFreeGC(dc->dpy, dc->gc); *\/ */
-/* 	/\* XCloseDisplay(dc->dpy); *\/ */
-/* 	free(dc); */
-/* } */
-
-/* unsigned long */
-/* getcolor(DC *dc, const char *colstr) { */
-/* 	Colormap cmap = DefaultColormap(dc->dpy, DefaultScreen(dc->dpy)); */
-/* 	XColor color; */
-
-/* 	if(!XAllocNamedColor(dc->dpy, cmap, colstr, &color, &color)) */
-/* 		eprintf("cannot allocate color '%s'\n", colstr); */
-/* 	return color.pixel; */
-/* } */
 static void layer_surface_configure(void *data,
 		struct zwlr_layer_surface_v1 *surface,
 		uint32_t serial, uint32_t width, uint32_t height) {
-	/* struct swaybar_output *output = data; */
-	/* output->width = width; */
-	/* output->height = height; */
 	zwlr_layer_surface_v1_ack_configure(surface, serial);
-	/* set_output_dirty(output); */
 }
 
 static void layer_surface_closed(void *_data,
 		struct zwlr_layer_surface_v1 *surface) {
-	/* struct swaybar_output *output = _output; */
-	/* swaybar_output_free(output); */
 }
 
 struct zwlr_layer_surface_v1_listener layer_surface_listener = {
@@ -266,8 +184,6 @@ static void output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
 }
 
 static void output_done(void *data, struct wl_output *wl_output) {
-	/* struct swaybar_output *output = data; */
-	/* set_output_dirty(output); */
 }
 
 static void output_scale(void *data, struct wl_output *wl_output,
@@ -366,7 +282,6 @@ static void keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
 
 static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
 		int32_t rate, int32_t delay) {
-	// TODO
 }
 
 static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard,
@@ -440,7 +355,6 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		panel->surface.layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
 
-	/* } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) { */
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		panel->monitor.xdg_output_manager = wl_registry_bind(registry, name,
 			&zxdg_output_manager_v1_interface, 2);
@@ -450,20 +364,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 
 static void handle_global_remove(void *data, struct wl_registry *registry,
 		uint32_t name) {
-	/* struct swaybar *bar = data; */
-	/* struct swaybar_output *output, *tmp; */
-	/* wl_list_for_each_safe(output, tmp, &bar->outputs, link) { */
-	/* 	if (output->wl_name == name) { */
-	/* 		swaybar_output_free(output); */
-	/* 		break; */
-	/* 	} */
-	/* } */
 }
 
 static void buffer_release(void *data, struct wl_buffer *wl_buffer) {
-	/* struct pool_buffer *buffer = data; */
-	/* buffer->busy = false; */
-	/* printf("released buffer\n"); */
 }
 
 static const struct wl_buffer_listener buffer_listener = {
@@ -501,9 +404,9 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 
 	wl_buffer_add_listener(buffer, &buffer_listener, panel);
 
-	cairo_surface_t *s = cairo_image_surface_create_for_data(panel->surface.shm_data, CAIRO_FORMAT_ARGB32,
+	cairo_surface_t *s = cairo_image_surface_create_for_data(panel->surface.shm_data,
+															 CAIRO_FORMAT_ARGB32,
 															 width, height, width * 4);
-	/* cairo_surface_t *recorder = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL); */
 	panel->surface.cairo = cairo_create(s);
 	cairo_set_antialias(panel->surface.cairo, CAIRO_ANTIALIAS_BEST);
 	cairo_font_options_t *fo = cairo_font_options_create();
@@ -591,40 +494,6 @@ void dmenu_close(struct dmenu_panel *dmenu) {
 	dmenu->running = false;
 }
 
-/* void */
-/* mapdc(DC *dc, Window win, unsigned int w, unsigned int h) { */
-/* 	XCopyArea(dc->dpy, dc->canvas, win, dc->gc, 0, 0, w, h, 0, 0); */
-/* } */
-
-/* void */
-/* resizedc(DC *dc, unsigned int w, unsigned int h) { */
-/* /\* 	if(dc->canvas) *\/ */
-/* /\* 		XFreePixmap(dc->dpy, dc->canvas); *\/ */
-/* /\* 	dc->canvas = XCreatePixmap(dc->dpy, DefaultRootWindow(dc->dpy), w, h, *\/ */
-/* /\* 	                           DefaultDepth(dc->dpy, DefaultScreen(dc->dpy))); *\/ */
-/* /\* 	dc->x = dc->y = 0; *\/ */
-/* /\* 	dc->w = w; *\/ */
-/* /\* 	dc->h = h; *\/ */
-/* /\* 	dc->invert = False; *\/ */
-/* } */
-
-/* int */
-/* textnw(DC *dc, const char *text, size_t len) { */
-/* /\* 	if(dc->font.set) { *\/ */
-/* /\* 		XRectangle r; *\/ */
-
-/* /\* 		XmbTextExtents(dc->font.set, text, len, NULL, &r); *\/ */
-/* /\* 		return r.width; *\/ */
-/* /\* 	} *\/ */
-/* /\* 	return XTextWidth(dc->font.xfont, text, len); *\/ */
-/* 	return 1; */
-/* } */
-
-/* int */
-/* textw(DC *dc, const char *text) { */
-/* 	/\* return textnw(dc, text, strlen(text)) + dc->font.height; *\/ */
-/* 	return 0; */
-/* } */
 
 void
 weprintf(const char *fmt, ...) {
