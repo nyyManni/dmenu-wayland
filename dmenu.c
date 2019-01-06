@@ -195,7 +195,7 @@ void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, char *str,
 				  int32_t x, int32_t scale, uint32_t
 				  foreground_color, uint32_t background_color, int32_t padding) {
-	
+
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
@@ -224,7 +224,7 @@ int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, char *str,
 }
 
 void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
-	
+
 	int32_t x = 0;
 
 	cairo_set_source_u32(cairo, color_bg);

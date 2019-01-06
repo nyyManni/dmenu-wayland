@@ -300,7 +300,7 @@ static void keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
 
 	panel->keyboard.xkb_state = xkb_state_new(panel->keyboard.xkb_keymap);
 }
-	
+
 static void keyboard_enter(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
 	// Who cares
@@ -349,10 +349,6 @@ static const struct wl_keyboard_listener keyboard_listener = {
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	struct dmenu_panel *panel = data;
-	/* if (caps & WL_SEAT_CAPABILITY_POINTER) { */
-	/* 	struct wl_pointer *pointer = wl_seat_get_pointer (dc->seat); */
-	/* 	/\* wl_pointer_add_listener (pointer, &pointer_listener, NULL); *\/ */
-	/* } */
 	if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
 		panel->keyboard.kbd = wl_seat_get_keyboard (panel->monitor.seat);
 		wl_keyboard_add_listener (panel->keyboard.kbd, &keyboard_listener, panel);
@@ -371,7 +367,7 @@ const struct wl_seat_listener seat_listener = {
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	struct dmenu_panel *panel = data;
-	
+
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		panel->monitor.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
