@@ -69,7 +69,7 @@ Display newline-separated input stdin as a menubar
     -r,  --return-early               return as soon as a single match is found
     -fn, --font-name FONT             font or font set to be used
     -nb, --normal-background COLOR    normal background color
-                                      #RGB, #RRGGBB, and color names supported
+                                      #RRGGBB and #RRGGBBAA supported
     -nf, --normal-foreground COLOR    normal foreground color
     -sb, --selected-background COLOR  selected background color
     -sf, --selected-foreground COLOR  selected foreground color

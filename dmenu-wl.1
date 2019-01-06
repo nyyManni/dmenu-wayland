@@ -1,0 +1,125 @@
+.TH DMENU 1 dmenu-wl\-VERSION
+.SH NAME
+dmenu-wl \- dynamic menu
+.SH SYNOPSIS
+.B dmenu-wl
+.RB [ \-b ]
+.RB [ \-i ]
+.RB [ \-l
+.IR lines ]
+.RB [ \-m
+.IR monitor ]
+.RB [ \-p
+.IR prompt ]
+.RB [ \-fn
+.IR font ]
+.RB [ \-nb
+.IR color ]
+.RB [ \-nf
+.IR color ]
+.RB [ \-sb
+.IR color ]
+.RB [ \-sf
+.IR color ]
+.RB [ \-v ]
+.P
+.BR dmenu-wl_run " ..."
+.P
+.B dmenu-wl_path
+.SH DESCRIPTION
+.B dmenu-wl
+is a dynamic menu for Wayland, originally designed for X and
+.BR dwm (1).
+It manages huge numbers of user-defined menu items efficiently.
+.P
+dmenu-wl reads a list of newline-separated items from standard input and creates a
+menu (or displays a notification if using -e). When the user selects an item or
+enters any text and presses Return, their choice is printed to standard output
+and dmenu-wl terminates.
+.P
+.B dmenu-wl_run
+is a dmenu-wl script used by dwm which lists programs in the user's PATH and
+executes the selected item.
+.P
+.B dmenu-wl_path
+is a program used by dmenu-wl_run to find and cache a list of executables.
+.SH OPTIONS
+.B \-e
+dmenu displays text from stdin with no user interaction.
+.TP
+.B \-ec
+same as -e but text is aligned centrally.
+.TP
+.B \-er
+same as -e but text is aligned to the right.
+.TP
+.BI \-et " secs "
+when using -e, close the message after the given number of seconds
+.TP
+.B \-b
+dmenu appears at the bottom of the screen.
+.TP
+.BI \-h " height"
+dmenu is drawn at least the given number of pixels high.
+.TP
+.B \-i
+dmenu matches menu items case insensitively.
+.TP
+.BI \-l " lines"
+dmenu lists items vertically, within the given number of lines.
+.TP
+.BI \-m " monitor"
+dmenu appears on the given Xinerama screen.
+.TP
+.BI \-p " prompt"
+defines the prompt to be displayed to the left of the input field.
+.TP
+.BI \-po " prompt"
+same as -p but don't wait for stdin - useful for a prompt with no selection options.
+.TP
+.B \-r
+Return as soon as a single match is found. i.e. don't wait for the user to press return.
+.TP
+.BI \-fn " font"
+defines the font or font set used.
+.TP
+.BI \-nb " color"
+defines the normal background color.
+.IR #RRGGBB and
+.IR #RRGGBBAA
+are supported.
+.TP
+.BI \-nf " color"
+defines the normal foreground color.
+.TP
+.BI \-sb " color"
+defines the selected background color.
+.TP
+.BI \-sf " color"
+defines the selected foreground color.
+.TP
+.B \-v
+prints version information to standard output, then exits.
+.SH USAGE
+dmenu-wl is completely controlled by the keyboard.  Besides standard Unix line
+editing and item selection (Up/Down/Left/Right, PageUp/PageDown, Home/End), the
+following keys are recognized:
+.TP
+.B Tab (Control\-i)
+Copy the selected item to the input field.
+.TP
+.B Return (Control\-j)
+Confirm selection.  Prints the selected item to standard output and exits,
+returning success.
+.TP
+.B Shift\-Return (Control\-Shift\-j)
+Confirm input.  Prints the input text to standard output and exits, returning
+success.
+.TP
+.B Escape (Control\-c)
+Exit without selecting an item, returning failure.
+.TP
+.B Control\-y
+Paste the current X selection into the input field.
+.SH SEE ALSO
+.BR dwm (1)

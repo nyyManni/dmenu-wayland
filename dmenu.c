@@ -496,7 +496,7 @@ usage(void) {
     printf("  -r,  --return-early               return as soon as a single match is found\n");
     printf("  -fn, --font-name FONT             font or font set to be used\n");
     printf("  -nb, --normal-background COLOR    normal background color\n");
-    printf("                                      #RGB, #RRGGBB, and color names supported\n");
+    printf("                                      #RRGGBB and #RRGGBBAA supported\n");
     printf("  -nf, --normal-foreground COLOR    normal foreground color\n");
     printf("  -sb, --selected-background COLOR  selected background color\n");
     printf("  -sf, --selected-foreground COLOR  selected foreground color\n");
