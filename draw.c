@@ -23,6 +23,10 @@
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
 
+int32_t round_to_int(double val) {
+	return (int32_t)(val + 0.5);
+}
+
 static void randname(char *buf) {
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
@@ -150,14 +154,11 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	double factor = panel->monitor.scale / ((double)panel->monitor.physical_width
 											/ panel->monitor.logical_width);
 
-	int32_t width = panel->monitor.physical_width * factor;
+	int32_t width = round_to_int(panel->monitor.physical_width * factor);
 
-	int32_t height = panel->height / ((double)panel->monitor.physical_width
-									   / panel->monitor.logical_width);
+	int32_t height = round_to_int(panel->height / ((double)panel->monitor.physical_width
+												   / panel->monitor.logical_width));
 	height *= panel->monitor.scale;
-
-	/* TODO: Figure out why needed? */
-	/* height += 1; */
 
 	if (panel->draw) {
 		panel->draw(cairo, width, height, panel->monitor.scale);
@@ -319,7 +320,8 @@ static void keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
 	enum wl_keyboard_key_state key_state = _key_state;
 	xkb_keysym_t sym = xkb_state_key_get_one_sym(panel->keyboard.xkb_state, key + 8);
 	if (panel->on_keyevent)
-		panel->on_keyevent(panel, key_state, sym, panel->keyboard.control);
+		panel->on_keyevent(panel, key_state, sym, panel->keyboard.control,
+						   panel->keyboard.shift);
 }
 
 static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
@@ -335,6 +337,9 @@ static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard,
 		mods_depressed, mods_latched, mods_locked, 0, 0, group);
 	panel->keyboard.control = xkb_state_mod_name_is_active(panel->keyboard.xkb_state,
 		XKB_MOD_NAME_CTRL,
+		XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
+	panel->keyboard.shift = xkb_state_mod_name_is_active(panel->keyboard.xkb_state,
+		XKB_MOD_NAME_SHIFT,
 		XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 }
 static const struct wl_keyboard_listener keyboard_listener = {
@@ -415,8 +420,8 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 	double factor = panel->monitor.scale / ((double)panel->monitor.physical_width
 											/ panel->monitor.logical_width);
 
-	int32_t width = panel->monitor.physical_width * factor;
-	int32_t height = panel->height * factor;
+	int32_t width = round_to_int(panel->monitor.physical_width * factor);
+	int32_t height = round_to_int(panel->height * factor);
 
 	int stride = width * 4;
 	int size = stride * height;
@@ -487,6 +492,8 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 
 	panel->surface.surface = wl_compositor_create_surface(panel->monitor.compositor);
 
+	if (!panel->surface.layer_shell)
+		eprintf("Compositor does not implement wlr-layer-shell protocol.");
 	panel->surface.layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(panel->surface.layer_shell,
 											  panel->surface.surface,

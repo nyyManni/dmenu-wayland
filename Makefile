@@ -15,14 +15,10 @@ dmenu-wl: dmenu.o draw.o xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protoc
 dmenu-wl_path: dmenu_path.o
 
 .c.o: config.mk
-	@echo CC -c $<
-	echo ${CC} -c $< ${CFLAGS}
-	@${CC} -c $< ${CFLAGS}
+	${CC} -c $< -ggdb ${CFLAGS}
 
 dmenu-wl dmenu-wl_path:
-	@echo CC -o $@
-	echo ${CC} -o $@ $+ ${LDFLAGS}
-	@${CC} -o $@ $+ ${LDFLAGS}
+	${CC} -ggdb -o $@ $+ ${LDFLAGS}
 
 clean:
 	@echo cleaning

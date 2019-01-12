@@ -35,6 +35,7 @@ struct keyboard_info {
 	struct xkb_keymap *xkb_keymap;
 	struct xkb_state *xkb_state;
 	bool control;
+	bool shift;
 };
 
 struct surface {
@@ -53,7 +54,8 @@ struct dmenu_panel {
 
 	struct surface surface;
 
-	void (*on_keyevent)(struct dmenu_panel *,enum wl_keyboard_key_state, xkb_keysym_t, bool);
+	void (*on_keyevent)(struct dmenu_panel *,enum wl_keyboard_key_state,
+						xkb_keysym_t, bool, bool);
 
 	void (*draw)(cairo_t *, int32_t, int32_t, int32_t);
 
@@ -75,5 +77,6 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 				   int *baseline, double scale, bool markup, const char *fmt, ...);
 void eprintf(const char *fmt, ...);
 void weprintf(const char *fmt, ...);
+int32_t round_to_int(double val);
 
 const char *progname;

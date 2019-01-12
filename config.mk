@@ -13,9 +13,8 @@ LIBS = -lwayland-client -lrt -lcairo -lpango-1.0 -lglib-2.0 -lgobject-2.0 -lpang
 
 # flags
 CPPFLAGS = -D_BSD_SOURCE -DVERSION=\"${VERSION}\"
-CFLAGS   = -std=c99 -pedantic -Wall -O0 -g ${INCS} ${CPPFLAGS}
-LDFLAGS  = -s ${LIBS} 
+CFLAGS   = -std=c99 -pedantic -Wall ${INCS} ${CPPFLAGS}
+LDFLAGS  = -s ${LIBS}
 
 # compiler and linker
 CC = cc
-
