@@ -44,7 +44,18 @@ Afterwards enter the following command to build and install dmenu-wl
 
 
 Running dmenu-wl
--------------
+----------------
+
+Usage as the application launcher in Sway
+=========================================
+
+Add to sway configuration (`~/.config/sway/config`) to run the launcher on Win+D.
+
+    bindsym $mod+d exec dmenu-wl_run -i
+    
+Usage from the command-line
+===========================
+
 See the man page for details.
 
 Usage: dmenu-wl [OPTION]...
