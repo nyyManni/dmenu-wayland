@@ -1,9 +1,7 @@
-dmenu-wl - dynamic menu
-=======================
+# dmenu-wl - dynamic menu
 dmenu-wl is an efficient dynamic menu for wayland (wlroots).
 
-TODO
-----
+## TODO
 Missing dmenu (for X) features:
 - Echo (non-interactive use)
 - Handling pagination
@@ -16,8 +14,7 @@ Other TODO items:
 - Cleaner exiting
 - Generate protocol files with `wayland-scanner`
 
-Requirements
-------------
+## Requirements
 Requires a compositor which implements wlr-layer-shell and xdg-output
 protocols. Basically this means a wlroots-based compositor is needed.
 Tested with sway 1.0-beta2.
@@ -32,32 +29,28 @@ Required libraries (and headers):
 - gobject-2.0
 
 
-Installation
-------------
+## Installation
 Edit config.mk to match your local setup (dmenu is installed into
 the /usr/local namespace by default).
 
 Afterwards enter the following command to build and install dmenu-wl
-(if necessary as root):
-
+(as root, if necessary):
+```
     make clean install
+```
 
+## Running dmenu-wl ...
 
-Running dmenu-wl
-----------------
-
-Usage as the application launcher in Sway
-=========================================
+### ... as the application launcher in Sway
 
 Add to sway configuration (`~/.config/sway/config`) to run the launcher on Win+D.
 
     bindsym $mod+d exec dmenu-wl_run -i
     
-Usage from the command-line
-===========================
+### ... from the command-line
 
 See the man page for details.
-
+```
 Usage: dmenu-wl [OPTION]...
 
 Display newline-separated input stdin as a menubar
@@ -88,3 +81,4 @@ Display newline-separated input stdin as a menubar
     -sb, --selected-background COLOR  selected background color
     -sf, --selected-foreground COLOR  selected foreground color
     -v,  --version                    display version information
+```
