@@ -23,6 +23,9 @@
 static const char overflow[] = "[buffer overflow]";
 static const int max_chars = 16384;
 
+struct monitor_info *monitors[16] = {0};
+static int n_monitors = 0;
+
 int32_t round_to_int(double val) {
 	return (int32_t)(val + 0.5);
 }
@@ -150,21 +153,23 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
 	cairo_paint(cairo);
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
+	struct monitor_info * m = monitors[panel->selected_monitor];
+	double factor = m->scale / ((double)m->physical_width
+											/ m->logical_width);
 
-	double factor = panel->monitor.scale / ((double)panel->monitor.physical_width
-											/ panel->monitor.logical_width);
+	int32_t width = round_to_int(m->physical_width * factor);
 
-	int32_t width = round_to_int(panel->monitor.physical_width * factor);
-
-	int32_t height = round_to_int(panel->height / ((double)panel->monitor.physical_width
-												   / panel->monitor.logical_width));
-	height *= panel->monitor.scale;
+	int32_t height = round_to_int(panel->height / ((double)m->physical_width
+												   / m->logical_width));
+	height *= m->scale;
 
 	if (panel->draw) {
-		panel->draw(cairo, width, height, panel->monitor.scale);
+		panel->draw(cairo, width, height, m->scale);
 	}
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
-	wl_surface_damage(panel->surface.surface, 0, 0, panel->monitor.logical_width, height);
+	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
+	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, height);
 	wl_surface_commit(panel->surface.surface);
 
 }
@@ -212,18 +217,22 @@ struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 };
 
 
+int32_t subpixel;
+int32_t physical_height;
+
+
 static void output_geometry(void *data, struct wl_output *wl_output, int32_t x,
 		int32_t y, int32_t width_mm, int32_t height_mm, int32_t subpixel,
 		const char *make, const char *model, int32_t transform) {
-	struct dmenu_panel *panel = data;
-	panel->monitor.subpixel = subpixel;
+	struct monitor_info *monitor = data;
+	monitor->subpixel = subpixel;
 }
 
 static void output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
 		int32_t width, int32_t height, int32_t refresh) {
-	struct dmenu_panel *panel = data;
-	panel->monitor.physical_width = width;
-	panel->monitor.physical_height = height;
+	struct monitor_info *monitor = data;
+	monitor->physical_width = width;
+	monitor->physical_height = height;
 }
 
 static void output_done(void *data, struct wl_output *wl_output) {
@@ -231,8 +240,8 @@ static void output_done(void *data, struct wl_output *wl_output) {
 
 static void output_scale(void *data, struct wl_output *wl_output,
 		int32_t factor) {
-	struct dmenu_panel *panel = data;
-	panel->monitor.scale = factor;
+	struct monitor_info *monitor = data;
+	monitor->scale = factor;
 }
 
 struct wl_output_listener output_listener = {
@@ -248,10 +257,10 @@ static void xdg_output_handle_logical_position(void *data,
 
 static void xdg_output_handle_logical_size(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
-	struct dmenu_panel *panel = data;
+	struct monitor_info *monitor = data;
 
-	panel->monitor.logical_width = width;
-	panel->monitor.logical_height = height;
+	monitor->logical_width = width;
+	monitor->logical_height = height;
 }
 
 static void xdg_output_handle_done(void *data,
@@ -355,7 +364,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	struct dmenu_panel *panel = data;
 	if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
-		panel->keyboard.kbd = wl_seat_get_keyboard (panel->monitor.seat);
+		panel->keyboard.kbd = wl_seat_get_keyboard (panel->display_info.seat);
 		wl_keyboard_add_listener (panel->keyboard.kbd, &keyboard_listener, panel);
 	}
 }
@@ -374,32 +383,35 @@ static void handle_global(void *data, struct wl_registry *registry,
 	struct dmenu_panel *panel = data;
 
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
-		panel->monitor.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+		panel->display_info.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-		panel->monitor.seat = wl_registry_bind (registry, name, &wl_seat_interface, 1);
-		wl_seat_add_listener (panel->monitor.seat, &seat_listener, panel);
+		panel->display_info.seat = wl_registry_bind (registry, name, &wl_seat_interface, 1);
+		wl_seat_add_listener (panel->display_info.seat, &seat_listener, panel);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		panel->surface.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
-
-	/* } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) { */
-	/* 	dc->xdg = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1); */
-
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 
-		panel->monitor.output = wl_registry_bind(registry, name, &wl_output_interface, 3);
-		wl_output_add_listener(panel->monitor.output, &output_listener, panel);
-		if (panel->monitor.xdg_output_manager != NULL) {
-			panel->monitor.xdg_output = zxdg_output_manager_v1_get_xdg_output(panel->monitor.xdg_output_manager,
-																   panel->monitor.output);
-			zxdg_output_v1_add_listener(panel->monitor.xdg_output, &xdg_output_listener, panel);
-			/* add_xdg_output(output); */
+		monitors[n_monitors] = malloc(sizeof(struct monitor_info));
+		monitors[n_monitors]->panel = panel;
+		monitors[n_monitors]->output = wl_registry_bind(registry, name, &wl_output_interface, 3);
+
+		wl_output_add_listener(monitors[n_monitors]->output, &output_listener,
+							   monitors[n_monitors]);
+
+		if (panel->display_info.xdg_output_manager != NULL) {
+			monitors[n_monitors]->xdg_output =
+				zxdg_output_manager_v1_get_xdg_output(panel->display_info.xdg_output_manager,
+													  monitors[n_monitors]->output);
+			zxdg_output_v1_add_listener(monitors[n_monitors]->xdg_output, &xdg_output_listener,
+										monitors[n_monitors]);
 		}
+		n_monitors++;
 
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		panel->surface.layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
 
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		panel->monitor.xdg_output_manager = wl_registry_bind(registry, name,
+		panel->display_info.xdg_output_manager = wl_registry_bind(registry, name,
 			&zxdg_output_manager_v1_interface, 2);
 	}
 
@@ -417,10 +429,11 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
-	double factor = panel->monitor.scale / ((double)panel->monitor.physical_width
-											/ panel->monitor.logical_width);
+	struct monitor_info * m = monitors[panel->selected_monitor];
+	double factor = m->scale / ((double)m->physical_width
+											/ m->logical_width);
 
-	int32_t width = round_to_int(panel->monitor.physical_width * factor);
+	int32_t width = round_to_int(m->physical_width * factor);
 	int32_t height = round_to_int(panel->height * factor);
 
 	int stride = width * 4;
@@ -455,7 +468,7 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 	cairo_font_options_t *fo = cairo_font_options_create();
 	cairo_font_options_set_hint_style(fo, CAIRO_HINT_STYLE_FULL);
 	cairo_font_options_set_antialias(fo, CAIRO_ANTIALIAS_SUBPIXEL);
-	cairo_font_options_set_subpixel_order(fo, to_cairo_subpixel_order(panel->monitor.subpixel));
+	cairo_font_options_set_subpixel_order(fo, to_cairo_subpixel_order(m->subpixel));
 	cairo_set_font_options(panel->surface.cairo, fo);
 	cairo_font_options_destroy(fo);
 	cairo_save(panel->surface.cairo);
@@ -473,53 +486,61 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	if(!setlocale(LC_CTYPE, ""))
 		weprintf("no locale support\n");
 
-	if(!(panel->monitor.display = wl_display_connect(NULL)))
+	if(!(panel->display_info.display = wl_display_connect(NULL)))
 		eprintf("cannot open display\n");
 
 	panel->height = height;
 	panel->keyboard.control = false;
 	panel->on_keyevent = NULL;
 
-	struct wl_registry *registry = wl_display_get_registry(panel->monitor.display);
+	struct wl_registry *registry = wl_display_get_registry(panel->display_info.display);
 	wl_registry_add_listener(registry, &registry_listener, panel);
 
-	wl_display_roundtrip(panel->monitor.display);
+	wl_display_roundtrip(panel->display_info.display);
 
 	/* Second roundtrip for xdg-output. Will populate display dimensions. */
-	wl_display_roundtrip(panel->monitor.display);
+	wl_display_roundtrip(panel->display_info.display);
+
+
+	panel->surface.surface = wl_compositor_create_surface(panel->display_info.compositor);
+
+	struct monitor_info * monitor = monitors[panel->selected_monitor];
+	if (!monitor)
+		eprintf("No monitor with index %i available.", panel->selected_monitor);
+
 
 	panel->surface.buffer = dmenu_create_buffer(panel);
-
-	panel->surface.surface = wl_compositor_create_surface(panel->monitor.compositor);
 
 	if (!panel->surface.layer_shell)
 		eprintf("Compositor does not implement wlr-layer-shell protocol.");
 	panel->surface.layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(panel->surface.layer_shell,
 											  panel->surface.surface,
-											  panel->monitor.output,
+											  monitor->output,
 											  ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
 											  "panel");
 
-	int32_t _height = panel->height / ((double)panel->monitor.physical_width
-									   / panel->monitor.logical_width);
+	int32_t _height = panel->height / ((double)monitor->physical_width
+									   / monitor->logical_width);
 
 	zwlr_layer_surface_v1_set_size(panel->surface.layer_surface,
-								   panel->monitor.logical_width, _height);
+								   monitor->logical_width, _height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
 									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
 
-	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
-	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 
 	zwlr_layer_surface_v1_add_listener(panel->surface.layer_surface,
 									   &layer_surface_listener, panel);
 
-	wl_surface_set_buffer_scale(panel->surface.surface, panel->monitor.scale);
+	wl_surface_set_buffer_scale(panel->surface.surface,
+								monitor->scale);
 	wl_surface_commit(panel->surface.surface);
-	wl_display_roundtrip(panel->monitor.display);
+	wl_display_roundtrip(panel->display_info.display);
+
+	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
 	wl_surface_commit(panel->surface.surface);
@@ -528,12 +549,16 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 void dmenu_show(struct dmenu_panel *dmenu) {
 	dmenu_draw(dmenu);
 
+	zwlr_layer_surface_v1_set_exclusive_zone(dmenu->surface.layer_surface, 10);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(dmenu->surface.layer_surface, true);
+	wl_surface_commit(dmenu->surface.surface);
+
 	dmenu->running = true;
-	while (wl_display_dispatch(dmenu->monitor.display) != -1 && dmenu->running) {
+	while (wl_display_dispatch(dmenu->display_info.display) != -1 && dmenu->running) {
 		// This space intentionally left blank
 	}
 	/* dmenu_close called */
-	wl_display_disconnect(dmenu->monitor.display);
+	wl_display_disconnect(dmenu->display_info.display);
 
 }
 void dmenu_close(struct dmenu_panel *dmenu) {

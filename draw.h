@@ -11,6 +11,8 @@
 
 enum { ColBG, ColFG, ColBorder, ColLast };
 
+struct dmenu_panel;
+
 struct monitor_info {
 	int32_t physical_width;
 	int32_t physical_height;
@@ -20,13 +22,20 @@ struct monitor_info {
 
 	enum wl_output_subpixel subpixel;
 
-	struct zxdg_output_manager_v1 *xdg_output_manager;
 	struct zxdg_output_v1 *xdg_output;
 
+	struct wl_output *output;
+	struct dmenu_panel *panel;
+};
+
+extern struct monitor_info *monitors[];
+
+struct display_info {
+	struct zxdg_output_manager_v1 *xdg_output_manager;
 	struct wl_display * display;
 	struct wl_compositor *compositor;
 	struct wl_seat *seat;
-	struct wl_output *output;
+
 };
 
 struct keyboard_info {
@@ -50,7 +59,9 @@ struct surface {
 
 struct dmenu_panel {
 	struct keyboard_info keyboard;
-	struct monitor_info monitor;
+	/* struct monitor_info monitor; */
+	int selected_monitor;
+	struct display_info display_info;
 
 	struct surface surface;
 

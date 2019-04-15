@@ -62,6 +62,7 @@ static void alarmhandler(int signum);
 static void handle_return(char* value);
 static void usage(void);
 static int retcode = EXIT_SUCCESS;
+static int selected_monitor = 0;
 
 static char text[BUFSIZ];
 static char text_[BUFSIZ];
@@ -248,9 +249,6 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 				  false, "Aj");
 	int32_t text_y = (height / 2.0) - (text_height / 2.0);
-	printf("%d\n", text_y);
-	printf("%d\n", text_height);
-
 
 	cairo_set_source_u32(cairo, color_bg);
 	cairo_paint(cairo);
@@ -352,60 +350,61 @@ uint32_t parse_color(char *str) {
 }
 
 int
-main(int argc, char *argv[]) {
-	int i;
+main(int argc, char **argv) {
+  int i;
 
-	progname = "dmenu";
-	for(i = 1; i < argc; i++)
-		if(!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
-			fputs("dmenu-wl-"VERSION", © 2006-2018 dmenu engineers, see LICENSE for details\n", stdout);
-			exit(EXIT_SUCCESS);
-		}
-		else if(!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
-			show_in_bottom = true;
-		else if(!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
-            message = true;
-		else if(!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
-            message = true, messageposition = CENTRE;
-		else if(!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
-            message = true, messageposition = RIGHT;
-		else if(!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
-			fstrncmp = strncasecmp;
-		else if(!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
-			returnearly = true;
-        else if(i==argc-1) {
-			printf("2\n");
-            usage();
+  progname = "dmenu";
+  for (i = 1; i < argc; i++)
+    if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
+      fputs("dmenu-wl-" VERSION
+            ", © 2006-2018 dmenu engineers, see LICENSE for details\n",
+            stdout);
+      exit(EXIT_SUCCESS);
+    } else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
+      show_in_bottom = true;
+    else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
+      message = true;
+    else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
+      message = true, messageposition = CENTRE;
+    else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
+      message = true, messageposition = RIGHT;
+    else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
+      fstrncmp = strncasecmp;
+    else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
+      returnearly = true;
+    else if (i == argc - 1) {
+      printf("2\n");
+      usage();
 
-		}
-        /* opts that need 1 arg */
-		else if(!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
-			timeout = atoi(argv[++i]);
-		else if(!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
-			panel_height = atoi(argv[++i]);
-		else if(!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
-			lines = atoi(argv[++i]);
-		else if(!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor"))
-			/* For compatibility with X dmenu */;
-		else if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
-			prompt = argv[++i];
-		else if(!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
-			prompt = argv[++i], nostdin = true;
-		else if(!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
-			font = argv[++i];
-		else if(!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
-			color_bg = color_input_bg = parse_color(argv[++i]);
-		else if(!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
-			color_fg = color_input_fg = parse_color(argv[++i]);
-		else if(!strcmp(argv[i], "-sb") || !strcmp(argv[i], "--selected-background"))
-			color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
-		else if(!strcmp(argv[i], "-sf") || !strcmp(argv[i], "--selected-foreground"))
-			color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
-		else{
-			printf("2\n");
-			usage();
-
-		}
+    }
+    /* opts that need 1 arg */
+    else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
+      timeout = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
+      panel_height = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
+      lines = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor"))
+		selected_monitor = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
+      prompt = argv[++i];
+    else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
+      prompt = argv[++i], nostdin = true;
+    else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
+      font = argv[++i];
+    else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
+      color_bg = color_input_bg = parse_color(argv[++i]);
+    else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
+      color_fg = color_input_fg = parse_color(argv[++i]);
+    else if (!strcmp(argv[i], "-sb") ||
+             !strcmp(argv[i], "--selected-background"))
+      color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
+    else if (!strcmp(argv[i], "-sf") ||
+             !strcmp(argv[i], "--selected-foreground"))
+      color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
+    else {
+      usage();
+    }
 
     if(message) {
         signal(SIGALRM, alarmhandler);
@@ -416,42 +415,27 @@ main(int argc, char *argv[]) {
     }
 
 	struct dmenu_panel dmenu;
+	dmenu.selected_monitor = selected_monitor;
 	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
+
 
 	dmenu.on_keyevent = keypress;
 	dmenu.draw = draw;
 	match();
 
-	double factor = dmenu.monitor.scale / ((double)dmenu.monitor.physical_width / dmenu.monitor.logical_width);
+	struct monitor_info *monitor = monitors[dmenu.selected_monitor];
 
-	window_config.height =round_to_int(dmenu.height / ((double)dmenu.monitor.physical_width
-												  / dmenu.monitor.logical_width));
-	window_config.height *= dmenu.monitor.scale;
+	double factor = monitor->scale / ((double)monitor->physical_width / monitor->logical_width);
 
-	window_config.width = round_to_int(dmenu.monitor.physical_width * factor);
-	/* int32_t text_width, text_height; */
+	window_config.height =round_to_int(dmenu.height / ((double)monitor->physical_width
+												  / monitor->logical_width));
+	window_config.height *= monitor->scale;
+
+	window_config.width = round_to_int(monitor->physical_width * factor);
 	get_text_size(dmenu.surface.cairo, font, NULL, &window_config.text_height,
-				  NULL, dmenu.monitor.scale, false, "Aj");
+				  NULL, monitor->scale, false, "Aj");
 	window_config.text_y = (window_config.height / 2.0) - (window_config.text_height / 2.0);
 
-	/* printf("%f\n", factor); */
-	/* printf("%i\n", dmenu.monitor.physical_width); */
-	/* printf("%i\n", dmenu.monitor.logical_width); */
-	/* printf("%d\n", window_config.text_y); */
-	/* printf("%d\n", window_config.text_height); */
-	/* return 0; */
-
-	/* if (prompt) { */
-	/* 	int32_t x; */
-	/* 	x = draw_text(dmenu.surface.cairo, dmenu.width, dmenu.height, prompt, 0, */
-	/* 				  dmenu.monitor.scale, color_prompt_fg, color_prompt_bg, 6); */
-	/* 	window_config.input_field = x; */
-	/* } else { */
-	/* 	window_config.input_field = 0; */
-	/* } */
-	/* window_config.scroll_left = window_config.input_field + 300 * dmenu.monitor.scale; */
-	/* window_config.matches = window_config.scroll_left + 20 * dmenu.monitor.scale; */
-	/* window_config.scroll_right = window_config.width - 20 * dmenu.monitor.scale; */
 
 	dmenu_show(&dmenu);
 
