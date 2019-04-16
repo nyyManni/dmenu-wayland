@@ -17,7 +17,7 @@ Other TODO items:
 ## Requirements
 Requires a compositor which implements wlr-layer-shell and xdg-output
 protocols. Basically this means a wlroots-based compositor is needed.
-Tested with sway 1.0-beta2.
+Tested with sway 1.0.
 
 Required libraries (and headers):
 - wayland-client
@@ -66,9 +66,8 @@ Display newline-separated input stdin as a menubar
     -i,  --insensitive                dmenu matches menu items case insensitively
     -l,  --lines LINES                dmenu lists items vertically, within the
                                       given number of lines
-    -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen
-                                      (does nothing on wayland, supported for
-                                      backwards compatibility)
+    -m,  --monitor MONITOR            dmenu appears on the given monitor
+                                      (0-based index)
     -p,  --prompt  PROMPT             prompt to be displayed to the left of the
                                       input field
     -po, --prompt-only  PROMPT        same as -p but don't wait for stdin
