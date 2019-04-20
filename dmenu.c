@@ -133,11 +133,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 	case XKB_KEY_KP_Enter: /* fallthrough */
 	case XKB_KEY_Return:
 		dmenu_close(panel);
-		if (shft) {
-			fputs(text, stdout);
-		} else if (sel) {
-			fputs(sel->text, stdout);
-		}
+		fputs((sel && !shft) ? sel->text : text, stdout);
 		fflush(stdout);
 		break;
 	case XKB_KEY_Escape:
