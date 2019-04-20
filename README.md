@@ -9,6 +9,7 @@ Missing dmenu (for X) features:
 - Return-early
 - Control-Enter handling
 - Keyrepeat
+- Choice (-c) -mode
 
 Other TODO items:
 - Cleaner exiting
