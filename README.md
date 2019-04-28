@@ -31,13 +31,11 @@ Required libraries (and headers):
 
 
 ## Installation
-Edit config.mk to match your local setup (dmenu is installed into
-the /usr/local namespace by default).
-
-Afterwards enter the following command to build and install dmenu-wl
-(as root, if necessary):
 ```
-    make clean install
+    mkdir build
+	meson build
+	ninja -C build
+	sudo ninja -C build install
 ```
 
 ## Running dmenu-wl ...
