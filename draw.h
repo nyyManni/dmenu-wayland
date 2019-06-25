@@ -5,6 +5,7 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <xkbcommon/xkbcommon.h>
 
+#define MAX_MONITOR_NAME_LEN 255
 
 #define FG(dc, col)  ((col)[(dc)->invert ? ColBG : ColFG])
 #define BG(dc, col)  ((col)[(dc)->invert ? ColFG : ColBG])
@@ -19,6 +20,8 @@ struct monitor_info {
 	int32_t logical_width;
 	int32_t logical_height;
 	double scale;
+	
+	char name[MAX_MONITOR_NAME_LEN];
 
 	enum wl_output_subpixel subpixel;
 
@@ -61,6 +64,9 @@ struct dmenu_panel {
 	struct keyboard_info keyboard;
 	/* struct monitor_info monitor; */
 	int selected_monitor;
+	char *selected_monitor_name;
+	
+	struct monitor_info *monitor;
 	struct display_info display_info;
 
 	struct surface surface;

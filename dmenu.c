@@ -59,10 +59,11 @@ static void match(void);
 static size_t nextrune(int incr);
 static void readstdin(void);
 static void alarmhandler(int signum);
-static void handle_return(char* value);
+/* static void handle_return(char* value); */
 static void usage(void);
 static int retcode = EXIT_SUCCESS;
 static int selected_monitor = 0;
+static char *selected_monitor_name = 0;
 
 static char text[BUFSIZ];
 static char text_[BUFSIZ];
@@ -350,7 +351,7 @@ main(int argc, char **argv) {
   int i;
 
   progname = "dmenu";
-  for (i = 1; i < argc; i++)
+  for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
       fputs("dmenu-wl-" VERSION
             ", © 2006-2018 dmenu engineers, see LICENSE for details\n",
@@ -380,8 +381,22 @@ main(int argc, char **argv) {
       panel_height = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
       lines = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor"))
-		selected_monitor = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
+		++i;
+		bool is_num = true;
+		for (int j = 0; j < strlen(argv[i]); ++j) {
+			if (!isdigit(argv[i][j])) {
+				is_num = false;
+				break;
+			}
+		}
+		if (is_num) {
+			selected_monitor = atoi(argv[i]);
+		} else {
+			selected_monitor = -1;
+			selected_monitor_name = argv[i];
+		}
+	}
     else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
       prompt = argv[++i];
     else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
@@ -401,8 +416,9 @@ main(int argc, char **argv) {
     else {
       usage();
     }
+  }
 
-    if(message) {
+    if (message) {
         signal(SIGALRM, alarmhandler);
         alarm(timeout);
     }
@@ -412,6 +428,7 @@ main(int argc, char **argv) {
 
 	struct dmenu_panel dmenu;
 	dmenu.selected_monitor = selected_monitor;
+	dmenu.selected_monitor_name = selected_monitor_name;
 	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
 
 
@@ -419,7 +436,7 @@ main(int argc, char **argv) {
 	dmenu.draw = draw;
 	match();
 
-	struct monitor_info *monitor = monitors[dmenu.selected_monitor];
+	struct monitor_info *monitor = dmenu.monitor;
 
 	double factor = monitor->scale / ((double)monitor->physical_width / monitor->logical_width);
 

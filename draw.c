@@ -153,7 +153,7 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
 	cairo_paint(cairo);
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
-	struct monitor_info * m = monitors[panel->selected_monitor];
+	struct monitor_info *m = panel->monitor;
 	double factor = m->scale / ((double)m->physical_width
 											/ m->logical_width);
 
@@ -267,12 +267,12 @@ static void xdg_output_handle_done(void *data,
 
 static void xdg_output_handle_name(void *data,
 		struct zxdg_output_v1 *xdg_output, const char *name) {
-	// Who cares
+	struct monitor_info *monitor = data;
+	strncpy(monitor->name, name, MAX_MONITOR_NAME_LEN);
 }
 
 static void xdg_output_handle_description(void *data,
 		struct zxdg_output_v1 *xdg_output, const char *description) {
-	// Who cares
 }
 
 struct zxdg_output_v1_listener xdg_output_listener = {
@@ -390,6 +390,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 
 		monitors[n_monitors] = malloc(sizeof(struct monitor_info));
 		monitors[n_monitors]->panel = panel;
+		memset(monitors[n_monitors]->name, 0, MAX_MONITOR_NAME_LEN);
 		monitors[n_monitors]->output = wl_registry_bind(registry, name, &wl_output_interface, 3);
 
 		wl_output_add_listener(monitors[n_monitors]->output, &output_listener,
@@ -426,7 +427,7 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
-	struct monitor_info * m = monitors[panel->selected_monitor];
+	struct monitor_info *m = panel->monitor;
 	double factor = m->scale / ((double)m->physical_width
 											/ m->logical_width);
 
@@ -501,10 +502,27 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 
 	panel->surface.surface = wl_compositor_create_surface(panel->display_info.compositor);
 
-	struct monitor_info * monitor = monitors[panel->selected_monitor];
-	if (!monitor)
-		eprintf("No monitor with index %i available.", panel->selected_monitor);
-
+	panel->monitor = NULL;
+	if (!panel->selected_monitor_name) {
+		panel->monitor = monitors[panel->selected_monitor];
+	} else {
+		for (int i = 0; i < n_monitors; ++i) {
+			printf("comparing to: \"%s\"\n", monitors[i]->name);
+			if (monitors[i] && !strncmp(panel->selected_monitor_name,
+										monitors[i]->name,
+										MAX_MONITOR_NAME_LEN)) {
+				panel->monitor = monitors[i];
+				printf("match\n");
+				break;
+			}
+		}
+	}
+	if (!panel->monitor) {
+		if (!panel->selected_monitor_name)
+			eprintf("No monitor with index %i available.", panel->selected_monitor);
+		else
+		eprintf("No monitor with name %s available.", panel->selected_monitor_name);
+	}
 
 	panel->surface.buffer = dmenu_create_buffer(panel);
 
@@ -513,12 +531,12 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	panel->surface.layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(panel->surface.layer_shell,
 											  panel->surface.surface,
-											  monitor->output,
+											  panel->monitor->output,
 											  ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
 											  "panel");
 
 	zwlr_layer_surface_v1_set_size(panel->surface.layer_surface,
-								   monitor->logical_width, panel->height);
+								   panel->monitor->logical_width, panel->height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
@@ -529,7 +547,7 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 									   &layer_surface_listener, panel);
 
 	wl_surface_set_buffer_scale(panel->surface.surface,
-								monitor->scale);
+								panel->monitor->scale);
 	wl_surface_commit(panel->surface.surface);
 	wl_display_roundtrip(panel->display_info.display);
 
