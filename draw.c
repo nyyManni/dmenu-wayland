@@ -507,12 +507,10 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 		panel->monitor = monitors[panel->selected_monitor];
 	} else {
 		for (int i = 0; i < n_monitors; ++i) {
-			printf("comparing to: \"%s\"\n", monitors[i]->name);
 			if (monitors[i] && !strncmp(panel->selected_monitor_name,
 										monitors[i]->name,
 										MAX_MONITOR_NAME_LEN)) {
 				panel->monitor = monitors[i];
-				printf("match\n");
 				break;
 			}
 		}
