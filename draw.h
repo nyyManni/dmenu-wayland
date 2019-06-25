@@ -20,7 +20,7 @@ struct monitor_info {
 	int32_t logical_width;
 	int32_t logical_height;
 	double scale;
-	
+
 	char name[MAX_MONITOR_NAME_LEN];
 
 	enum wl_output_subpixel subpixel;
@@ -62,10 +62,10 @@ struct surface {
 
 struct dmenu_panel {
 	struct keyboard_info keyboard;
-	/* struct monitor_info monitor; */
 	int selected_monitor;
 	char *selected_monitor_name;
-	
+
+	bool bottom;
 	struct monitor_info *monitor;
 	struct display_info display_info;
 

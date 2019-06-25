@@ -164,8 +164,6 @@ void dmenu_draw(struct dmenu_panel *panel) {
 		panel->draw(cairo, width, height, m->scale);
 	}
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
-	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
-	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, panel->height);
 	wl_surface_commit(panel->surface.surface);
 
@@ -201,6 +199,17 @@ eprintf(const char *fmt, ...) {
 static void layer_surface_configure(void *data,
 		struct zwlr_layer_surface_v1 *surface,
 		uint32_t serial, uint32_t width, uint32_t height) {
+	struct dmenu_panel *panel = data;
+
+	zwlr_layer_surface_v1_set_exclusive_zone(surface, 10);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(surface, true);
+
+	zwlr_layer_surface_v1_set_size(surface, panel->monitor->logical_width, panel->height);
+	zwlr_layer_surface_v1_set_anchor(surface,
+									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+									 (panel->bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
+									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
+
 	zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
@@ -490,6 +499,7 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	panel->height = height;
 	panel->keyboard.control = false;
 	panel->on_keyevent = NULL;
+	panel->bottom = bottom;
 
 	struct wl_registry *registry = wl_display_get_registry(panel->display_info.display);
 	wl_registry_add_listener(registry, &registry_listener, panel);
@@ -524,6 +534,9 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 
 	panel->surface.buffer = dmenu_create_buffer(panel);
 
+	wl_surface_set_buffer_scale(panel->surface.surface,
+								panel->monitor->scale);
+
 	if (!panel->surface.layer_shell)
 		eprintf("Compositor does not implement wlr-layer-shell protocol.");
 	panel->surface.layer_surface =
@@ -532,25 +545,12 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 											  panel->monitor->output,
 											  ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
 											  "panel");
-
-	zwlr_layer_surface_v1_set_size(panel->surface.layer_surface,
-								   panel->monitor->logical_width, panel->height);
-	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
-									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
-									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
-									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
-
-
 	zwlr_layer_surface_v1_add_listener(panel->surface.layer_surface,
 									   &layer_surface_listener, panel);
 
-	wl_surface_set_buffer_scale(panel->surface.surface,
-								panel->monitor->scale);
 	wl_surface_commit(panel->surface.surface);
 	wl_display_roundtrip(panel->display_info.display);
 
-	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
-	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
 	wl_surface_commit(panel->surface.surface);
@@ -559,8 +559,6 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 void dmenu_show(struct dmenu_panel *dmenu) {
 	dmenu_draw(dmenu);
 
-	zwlr_layer_surface_v1_set_exclusive_zone(dmenu->surface.layer_surface, 10);
-	zwlr_layer_surface_v1_set_keyboard_interactivity(dmenu->surface.layer_surface, true);
 	wl_surface_commit(dmenu->surface.surface);
 
 	dmenu->running = true;
