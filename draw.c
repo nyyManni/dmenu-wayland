@@ -158,10 +158,7 @@ void dmenu_draw(struct dmenu_panel *panel) {
 											/ m->logical_width);
 
 	int32_t width = round_to_int(m->physical_width * factor);
-
-	int32_t height = round_to_int(panel->height / ((double)m->physical_width
-												   / m->logical_width));
-	height *= m->scale;
+	int32_t height = panel->height * m->scale;
 
 	if (panel->draw) {
 		panel->draw(cairo, width, height, m->scale);
@@ -169,7 +166,7 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
 	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
-	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, height);
+	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, panel->height);
 	wl_surface_commit(panel->surface.surface);
 
 }
@@ -434,7 +431,7 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 											/ m->logical_width);
 
 	int32_t width = round_to_int(m->physical_width * factor);
-	int32_t height = round_to_int(panel->height * factor);
+	int32_t height = round_to_int(panel->height * m->scale);
 
 	int stride = width * 4;
 	int size = stride * height;
@@ -520,11 +517,8 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 											  ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
 											  "panel");
 
-	int32_t _height = panel->height / ((double)monitor->physical_width
-									   / monitor->logical_width);
-
 	zwlr_layer_surface_v1_set_size(panel->surface.layer_surface,
-								   monitor->logical_width, _height);
+								   monitor->logical_width, panel->height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM

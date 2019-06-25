@@ -50,7 +50,7 @@ static uint32_t color_prompt_fg = 0xeeeeeeff;
 static uint32_t color_selected_bg = 0x005577ff;
 static uint32_t color_selected_fg = 0xeeeeeeff;
 
-static int32_t panel_height = 40;
+static int32_t panel_height = 20;
 
 static void appenditem(Item *item, Item **list, Item **last);
 static char *fstrstr(const char *s, const char *sub);
