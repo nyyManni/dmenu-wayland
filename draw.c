@@ -537,6 +537,7 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 								   panel->monitor->logical_width, panel->height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+									 ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
 									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
 
