@@ -18,12 +18,18 @@ add_project_arguments(
 
 cc = meson.get_compiler('c')
 
-cairo               = dependency('cairo')
+# cairo               = dependency('cairo')
 glib                = dependency('glib-2.0')
 gobject             = dependency('gobject-2.0')
-pango               = dependency('pango')
-pangocairo          = dependency('pangocairo')
+# pango               = dependency('pango')
+# pangocairo          = dependency('pangocairo')
+freetype            = dependency('freetype2')
+fontconfig            = dependency('fontconfig')
 rt                  = cc.find_library('rt')
+msdfgl              = cc.find_library('msdfgl')
+wayland_egl         = dependency('wayland-egl')
+gl                  = dependency('GL')
+egl                 = cc.find_library('EGL')
 wayland_client      = dependency('wayland-client')
 wayland_protos      = dependency('wayland-protocols')
 wayland_scanner_dep = dependency('wayland-scanner')
@@ -60,17 +66,23 @@ foreach p : protocols
 endforeach
 
 dmenu_deps = [
-  cairo,
+  # cairo,
   glib,
   gobject,
-  pango,
-  pangocairo,
+  # pango,
+  # pangocairo,
+  freetype,
+  fontconfig,
   rt,
   wayland_client,
-  xkbcommon
+  xkbcommon,
+  msdfgl,
+  wayland_egl,
+  gl,
+  egl
 ]
 
-dmenu_src = ['dmenu.c', 'draw.c'] + protos_src + protos_headers
+dmenu_src = ['dmenu.c', 'wlterm.c', 'egl_util.c'] + protos_src + protos_headers
 
 executable('dmenu-wl', dmenu_src, dependencies: dmenu_deps, install: true)
 
