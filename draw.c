@@ -391,7 +391,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		monitors[n_monitors] = malloc(sizeof(struct monitor_info));
 		monitors[n_monitors]->panel = panel;
 		memset(monitors[n_monitors]->name, 0, MAX_MONITOR_NAME_LEN);
-		monitors[n_monitors]->output = wl_registry_bind(registry, name, &wl_output_interface, 3);
+		monitors[n_monitors]->output = wl_registry_bind(registry, name, &wl_output_interface, 2);
 
 		wl_output_add_listener(monitors[n_monitors]->output, &output_listener,
 							   monitors[n_monitors]);
