@@ -218,20 +218,18 @@ int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str
 
 		cairo_move_to(cairo, width, text_y);
 		pango_printf(cairo, font, scale, false, ">");
+	} else {
+		if (background_color) {
+			cairo_set_source_u32(cairo, background_color);
+			cairo_rectangle(cairo, x, 0, text_width + 2 * padding * scale, height);
+			cairo_fill(cairo);
+		}
 
-		return width;
+		cairo_move_to(cairo, x + padding * scale, text_y);
+		cairo_set_source_u32(cairo, foreground_color);
+
+		pango_printf(cairo, font, scale, false, str);
 	}
-
-	if (background_color) {
-		cairo_set_source_u32(cairo, background_color);
-		cairo_rectangle(cairo, x, 0, text_width + 2 * padding * scale, height);
-		cairo_fill(cairo);
-	}
-
-	cairo_move_to(cairo, x + padding * scale, text_y);
-	cairo_set_source_u32(cairo, foreground_color);
-
-	pango_printf(cairo, font, scale, false, str);
 
 	return x + text_width + 2 * padding * scale;
 }
@@ -313,18 +311,21 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 		for (item = matches; item; item = item->right) {
 			uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
 			uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
-			if (x < width)
+			if (x < width) {
 				/* x = draw_text(cairo, width - 20 * scale, height, item->text, */
 				/* 			  x, scale, fg_color, bg_color, item_padding); */
 				x = draw_text(cairo, width - 20 * scale, height, item->text,
 							  x, scale, fg_color, bg_color, item_padding);
+			} else {
+				break;
+			}
 		}
 
 		if (leftmost != matches) {
 			cairo_move_to(cairo, scroll_indicator_pos, text_y);
 			pango_printf(cairo, font, scale, false, "<");
 		}
-        }
+	}
 }
 
 uint32_t parse_color(char *str) {
