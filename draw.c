@@ -164,7 +164,6 @@ void dmenu_draw(struct dmenu_panel *panel) {
 		panel->draw(cairo, width, height, m->scale);
 	}
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
-	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, panel->height);
 	wl_surface_commit(panel->surface.surface);
@@ -550,7 +549,6 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	wl_surface_commit(panel->surface.surface);
 	wl_display_roundtrip(panel->display_info.display);
 
-	zwlr_layer_surface_v1_set_exclusive_zone(panel->surface.layer_surface, 10);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
@@ -560,7 +558,6 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 void dmenu_show(struct dmenu_panel *dmenu) {
 	dmenu_draw(dmenu);
 
-	zwlr_layer_surface_v1_set_exclusive_zone(dmenu->surface.layer_surface, 10);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(dmenu->surface.layer_surface, true);
 	wl_surface_commit(dmenu->surface.surface);
 
