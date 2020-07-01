@@ -73,11 +73,18 @@ struct dmenu_panel {
 
 	void (*on_keyevent)(struct dmenu_panel *,enum wl_keyboard_key_state,
 						xkb_keysym_t, bool, bool);
+	void (*on_keyrepeat)(struct dmenu_panel *);
 
 	void (*draw)(cairo_t *, int32_t, int32_t, int32_t);
 
 	int32_t width;
 	int32_t height;
+
+	int repeat_timer;
+	int repeat_delay;
+	int repeat_period;
+	enum wl_keyboard_key_state repeat_key_state;
+	xkb_keysym_t repeat_sym;
 
 	bool running;
 };

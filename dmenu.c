@@ -96,6 +96,13 @@ insert(const char *s, ssize_t n) {
 	match();
 }
 
+void keyrepeat(struct dmenu_panel *panel) {
+	if (panel->on_keyevent) {
+		panel->on_keyevent(panel, panel->repeat_key_state, panel->repeat_sym,
+						   panel->keyboard.control, panel->keyboard.shift);
+	}
+}
+
 void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			  xkb_keysym_t sym, bool ctrl, bool shft) {
 	char buf[8];
@@ -434,6 +441,7 @@ main(int argc, char **argv) {
 
 
 	dmenu.on_keyevent = keypress;
+	dmenu.on_keyrepeat = keyrepeat;
 	dmenu.draw = draw;
 	match();
 

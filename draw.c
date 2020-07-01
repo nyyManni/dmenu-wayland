@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 #include <sys/mman.h>
+#include <sys/timerfd.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
 #include <pango/pangocairo.h>
@@ -282,7 +284,6 @@ struct zxdg_output_v1_listener xdg_output_listener = {
 	.description = xdg_output_handle_description,
 };
 
-
 static void keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t format, int32_t fd, uint32_t size) {
 
@@ -317,6 +318,16 @@ static void keyboard_leave(void *data, struct wl_keyboard *wl_keyboard,
 	// Who cares
 }
 
+static void keyboard_repeat(struct dmenu_panel *panel) {
+	if (panel->on_keyrepeat) {
+		panel->on_keyrepeat(panel);
+	}
+
+	struct itimerspec spec = { 0 };
+	spec.it_value.tv_sec = panel->repeat_period / 1000;
+	spec.it_value.tv_nsec = (panel->repeat_period % 1000) * 1000000l;
+	timerfd_settime(panel->repeat_timer, 0, &spec, NULL);
+}
 
 static void keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t time, uint32_t key, uint32_t _key_state) {
@@ -324,13 +335,34 @@ static void keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
 
 	enum wl_keyboard_key_state key_state = _key_state;
 	xkb_keysym_t sym = xkb_state_key_get_one_sym(panel->keyboard.xkb_state, key + 8);
-	if (panel->on_keyevent)
+	if (panel->on_keyevent) {
 		panel->on_keyevent(panel, key_state, sym, panel->keyboard.control,
 						   panel->keyboard.shift);
+
+		if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED && panel->repeat_period >= 0) {
+			panel->repeat_key_state = key_state;
+			panel->repeat_sym = sym;
+
+			struct itimerspec spec = { 0 };
+			spec.it_value.tv_sec = panel->repeat_delay / 1000;
+			spec.it_value.tv_nsec = (panel->repeat_delay % 1000) * 1000000l;
+			timerfd_settime(panel->repeat_timer, 0, &spec, NULL);
+		} else if (key_state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+			struct itimerspec spec = { 0 };
+			timerfd_settime(panel->repeat_timer, 0, &spec, NULL);
+		}
+	}
 }
 
 static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
 		int32_t rate, int32_t delay) {
+	struct dmenu_panel *panel = data;
+	panel->repeat_delay = delay;
+	if (rate > 0) {
+		panel->repeat_period = 1000 / rate;
+	} else {
+		panel->repeat_period = -1;
+	}
 }
 
 static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard,
@@ -381,7 +413,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		panel->display_info.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-		panel->display_info.seat = wl_registry_bind (registry, name, &wl_seat_interface, 1);
+		panel->display_info.seat = wl_registry_bind (registry, name, &wl_seat_interface, 4);
 		wl_seat_add_listener (panel->display_info.seat, &seat_listener, panel);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		panel->surface.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
@@ -486,6 +518,9 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	if(!(panel->display_info.display = wl_display_connect(NULL)))
 		eprintf("cannot open display\n");
 
+	if ((panel->repeat_timer = timerfd_create(CLOCK_MONOTONIC, 0)) < 0)
+		eprintf("cannot create timer fd\n");
+
 	panel->height = height;
 	panel->keyboard.control = false;
 	panel->on_keyevent = NULL;
@@ -561,10 +596,39 @@ void dmenu_show(struct dmenu_panel *dmenu) {
 	zwlr_layer_surface_v1_set_keyboard_interactivity(dmenu->surface.layer_surface, true);
 	wl_surface_commit(dmenu->surface.surface);
 
+	struct pollfd fds[] = {
+		{ wl_display_get_fd(dmenu->display_info.display), POLLIN },
+		{ dmenu->repeat_timer, POLLIN },
+	};
+	const int nfds = sizeof(fds) / sizeof(*fds);
+
+	wl_display_flush(dmenu->display_info.display);
+
 	dmenu->running = true;
-	while (wl_display_dispatch(dmenu->display_info.display) != -1 && dmenu->running) {
-		// This space intentionally left blank
+	while (dmenu->running) {
+		if (wl_display_flush(dmenu->display_info.display) < 0) {
+			if (errno == EAGAIN)
+				continue;
+			break;
+		}
+
+		if (poll(fds, nfds, -1) < 0) {
+			if (errno == EAGAIN)
+				continue;
+			break;
+		}
+
+		if (fds[0].revents & POLLIN) {
+			if (wl_display_dispatch(dmenu->display_info.display) < 0) {
+				dmenu->running = false;
+			}
+		}
+
+		if (fds[1].revents & POLLIN) {
+			keyboard_repeat(dmenu);
+		}
 	}
+
 	/* dmenu_close called */
 	wl_display_disconnect(dmenu->display_info.display);
 
