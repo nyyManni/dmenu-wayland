@@ -103,4 +103,4 @@ void eprintf(const char *fmt, ...);
 void weprintf(const char *fmt, ...);
 int32_t round_to_int(double val);
 
-const char *progname;
+extern const char *progname;
