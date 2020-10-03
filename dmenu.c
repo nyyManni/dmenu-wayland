@@ -65,6 +65,7 @@ static void usage(void);
 static int retcode = EXIT_SUCCESS;
 static int selected_monitor = 0;
 static char *selected_monitor_name = 0;
+static void parse_args(int argc, char *argv[]);
 
 static char text[BUFSIZ];
 static char text_[BUFSIZ];
@@ -74,9 +75,9 @@ static int timeout = 3;
 static size_t cursor = 0;
 static const char *prompt = NULL;
 static bool message = false;
-static bool nostdin = false;
+static bool use_stdin = true;
 static bool returnearly = false;
-static bool show_in_bottom = false;
+static bool bar_at_bottom = false;
 static TextPosition messageposition = LEFT;
 static Item *items = NULL;
 static Item *matches, *sel;
@@ -357,88 +358,21 @@ uint32_t parse_color(char *str) {
 
 int
 main(int argc, char **argv) {
-  int i;
-
-  progname = "dmenu";
-  for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
-      fputs("dmenu-wl-" VERSION
-            ", © 2006-2018 dmenu engineers, see LICENSE for details\n",
-            stdout);
-      exit(EXIT_SUCCESS);
-    } else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
-      show_in_bottom = true;
-    else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
-      message = true;
-    else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
-      message = true, messageposition = CENTRE;
-    else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
-      message = true, messageposition = RIGHT;
-    else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
-      fstrncmp = strncasecmp;
-    else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
-      returnearly = true;
-    else if (i == argc - 1) {
-      printf("2\n");
-      usage();
-
-    }
-    /* opts that need 1 arg */
-    else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
-      timeout = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
-      panel_height = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
-      lines = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
-		++i;
-		bool is_num = true;
-		for (int j = 0; j < strlen(argv[i]); ++j) {
-			if (!isdigit(argv[i][j])) {
-				is_num = false;
-				break;
-			}
-		}
-		if (is_num) {
-			selected_monitor = atoi(argv[i]);
-		} else {
-			selected_monitor = -1;
-			selected_monitor_name = argv[i];
-		}
+	int i;
+	progname = "dmenu";
+ 
+	if (message) {
+		signal(SIGALRM, alarmhandler);
+		alarm(timeout);
 	}
-    else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
-      prompt = argv[++i];
-    else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
-      prompt = argv[++i], nostdin = true;
-    else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
-      font = argv[++i];
-    else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
-      color_bg = color_input_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
-      color_fg = color_input_fg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sb") ||
-             !strcmp(argv[i], "--selected-background"))
-      color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sf") ||
-             !strcmp(argv[i], "--selected-foreground"))
-      color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
-    else {
-      usage();
-    }
-  }
-
-    if (message) {
-        signal(SIGALRM, alarmhandler);
-        alarm(timeout);
-    }
-    if(!nostdin) {
-        readstdin();
-    }
+	if(use_stdin) {
+		readstdin();
+	}
 
 	struct dmenu_panel dmenu;
 	dmenu.selected_monitor = selected_monitor;
 	dmenu.selected_monitor_name = selected_monitor_name;
-	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
+	dmenu_init_panel(&dmenu, panel_height, bar_at_bottom);
 
 
 	dmenu.on_keyevent = keypress;
@@ -574,37 +508,112 @@ alarmhandler(int signum) {
     exit(EXIT_SUCCESS);
 }
 
-void
-usage(void) {
-    printf("Usage: dmenu [OPTION]...\n");
-    printf("Display newline-separated input stdin as a menubar\n");
-    printf("\n");
-    printf("  -e,  --echo                       display text from stdin with no user\n");
-    printf("                                      interaction\n");
-    printf("  -ec, --echo-centre                same as -e but align text centrally\n");
-    printf("  -er, --echo-right                 same as -e but align text right\n");
-    printf("  -et, --echo-timeout SECS          close the message after SEC seconds\n");
-    printf("                                      when using -e, -ec, or -er\n");
-    printf("  -b,  --bottom                     dmenu appears at the bottom of the screen\n");
-    printf("  -h,  --height N                   set dmenu to be N pixels high\n");
-    printf("  -i,  --insensitive                dmenu matches menu items case insensitively\n");
-    printf("  -l,  --lines LINES                dmenu lists items vertically, within the\n");
-    printf("                                      given number of lines\n");
-    printf("  -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen\n");
-    printf("                                      (does nothing on wayland, supported for)\n");
-    printf("                                      compatibility with dmenu.\n");
-    printf("  -p,  --prompt  PROMPT             prompt to be displayed to the left of the\n");
-    printf("                                      input field\n");
-    printf("  -po, --prompt-only  PROMPT        same as -p but don't wait for stdin\n");
-    printf("                                      useful for a prompt with no menu\n");
-    printf("  -r,  --return-early               return as soon as a single match is found\n");
-    printf("  -fn, --font-name FONT             font or font set to be used\n");
-    printf("  -nb, --normal-background COLOR    normal background color\n");
-    printf("                                      #RRGGBB and #RRGGBBAA supported\n");
-    printf("  -nf, --normal-foreground COLOR    normal foreground color\n");
-    printf("  -sb, --selected-background COLOR  selected background color\n");
-    printf("  -sf, --selected-foreground COLOR  selected foreground color\n");
-    printf("  -v,  --version                    display version information\n");
+static void 
+parse_args(int argc, char *argv[])
+{
+	int i;
 
-	exit(EXIT_FAILURE);
+	progname = "wlmenu";
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
+			fputs("wlmenu-wl-" VERSION
+			", Â© 2006-2018 wlmenu engineers \n see LICENSE for details\n", stdout);
+			exit(EXIT_SUCCESS);
+		} else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom")){
+			bar_at_bottom = true;
+		} else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo")){
+			message = true;
+		} else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-center")){
+			message = true;
+			messageposition = CENTER;
+		} else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right")){
+			message = true;
+			messageposition = RIGHT;
+		} else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive")){
+			fstrncmp = strncasecmp;
+		} else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early")){
+			returnearly = true;
+		} else if (!strcmp(argv[i], "--help")){
+			usage(1); /* the user intentionally chose to show the help msg*/
+		} else if (i == argc - 1) {
+			printf("2\n");
+			usage(0);
+		}
+		/* opts that need 1 arg */ 
+		else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout")) {
+			timeout = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height")) {
+			panel_height = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines")) {
+			lines = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
+			++i;
+			bool is_num = true;
+			for (int j = 0; j < strlen(argv[i]); ++j) {
+				if (!isdigit(argv[i][j])) {
+					is_num = false;
+					break;
+				}
+			}
+			if (is_num) {
+				selected_monitor = atoi(argv[i]);
+			} else {
+				selected_monitor = -1;
+				selected_monitor_name = argv[i];
+			}
+		} else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt")){
+			prompt = argv[++i];
+		} else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only")){
+			prompt = argv[++i], use_stdin = false;
+		} else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name")){
+			font = argv[++i];
+		} else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background")){
+			color_bg = color_input_bg = parse_color(argv[++i]);
+		} else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground")){
+			color_fg = color_input_fg = parse_color(argv[++i]);
+		} else if (!strcmp(argv[i], "-sb") || !strcmp(argv[i], "--selected-background")){
+			color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
+		} else if (!strcmp(argv[i], "-sf") || !strcmp(argv[i], "--selected-foreground")){
+			color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
+		} else {
+			usage(0);
+		}
+	}	
+}
+
+
+void
+usage(int status) {
+	printf("Usage: dmenu [OPTION]...\n");
+	printf("Display newline-separated input stdin as a menubar\n");
+	printf("\n");
+	printf("       --help                       display this help text\n");
+	printf("  -e,  --echo                       display text from stdin with no user\n");
+	printf("                                      interaction\n");
+	printf("  -ec, --echo-centre                same as -e but align text centrally\n");
+	printf("  -er, --echo-right                 same as -e but align text right\n");
+	printf("  -et, --echo-timeout SECS          close the message after SEC seconds\n");
+	printf("                                      when using -e, -ec, or -er\n");
+	printf("  -b,  --bottom                     dmenu appears at the bottom of the screen\n");
+	printf("  -h,  --height N                   set dmenu to be N pixels high\n");
+	printf("  -i,  --insensitive                dmenu matches menu items case insensitively\n");
+	printf("  -l,  --lines LINES                dmenu lists items vertically, within the\n");
+	printf("                                      given number of lines\n");
+	printf("  -m,  --monitor MONITOR            dmenu appears on the given Xinerama screen\n");
+	printf("                                      (does nothing on wayland, supported for)\n");
+	printf("                                      compatibility with dmenu.\n");
+	printf("  -p,  --prompt  PROMPT             prompt to be displayed to the left of the\n");
+	printf("                                      input field\n");
+	printf("  -po, --prompt-only  PROMPT        same as -p but don't wait for stdin\n");
+	printf("                                      useful for a prompt with no menu\n");
+	printf("  -r,  --return-early               return as soon as a single match is found\n");
+	printf("  -fn, --font-name FONT             font or font set to be used\n");
+	printf("  -nb, --normal-background COLOR    normal background color\n");
+	printf("                                      #RRGGBB and #RRGGBBAA supported\n");
+	printf("  -nf, --normal-foreground COLOR    normal foreground color\n");
+	printf("  -sb, --selected-background COLOR  selected background color\n");
+	printf("  -sf, --selected-foreground COLOR  selected foreground color\n");
+	printf("  -v,  --version                    display version information\n");
+
+	exit(status);
 }
