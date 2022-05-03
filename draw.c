@@ -159,7 +159,7 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	double factor = m->scale / ((double)m->physical_width
 											/ m->logical_width);
 
-	int32_t width = round_to_int(m->physical_width * factor);
+	int32_t width = round_to_int(panel->width * factor);
 	int32_t height = panel->height * m->scale;
 
 	if (panel->draw) {
@@ -462,7 +462,7 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 	double factor = m->scale / ((double)m->physical_width
 											/ m->logical_width);
 
-	int32_t width = round_to_int(m->physical_width * factor);
+	int32_t width = round_to_int(panel->width * factor);
 	int32_t height = round_to_int(panel->height * m->scale);
 
 	int stride = width * 4;
@@ -511,7 +511,7 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 
-void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
+void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom, int32_t margins[4]) {
 	if(!setlocale(LC_CTYPE, ""))
 		weprintf("no locale support\n");
 
@@ -556,6 +556,8 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 		eprintf("No monitor with name %s available.", panel->selected_monitor_name);
 	}
 
+	panel->width = panel->monitor->physical_width - (margins[1] + margins[3]);
+
 	panel->surface.buffer = dmenu_create_buffer(panel);
 
 	if (!panel->surface.layer_shell)
@@ -568,13 +570,14 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 											  "panel");
 
 	zwlr_layer_surface_v1_set_size(panel->surface.layer_surface,
-								   panel->monitor->logical_width, panel->height);
+								   panel->width, panel->height);
 	zwlr_layer_surface_v1_set_anchor(panel->surface.layer_surface,
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 									 ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 									 (bottom ? ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
 									  : ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP));
-
+	zwlr_layer_surface_v1_set_margin(panel->surface.layer_surface,
+									 margins[0], margins[1], margins[2], margins[3]);
 
 	zwlr_layer_surface_v1_add_listener(panel->surface.layer_surface,
 									   &layer_surface_listener, panel);

@@ -52,6 +52,7 @@ static uint32_t color_selected_bg = 0x005577ff;
 static uint32_t color_selected_fg = 0xeeeeeeff;
 
 static int32_t panel_height = 20;
+static int32_t panel_margins[4] = { 0, 0, 0, 0 };
 
 static void appenditem(Item *item, Item **list, Item **last);
 static char *fstrstr(const char *s, const char *sub);
@@ -388,6 +389,10 @@ main(int argc, char **argv) {
       timeout = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
       panel_height = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-x") || !strcmp(argv[i], "--horizontal-margins"))
+      panel_margins[1] = panel_margins[3] = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-y") || !strcmp(argv[i], "--vertical-margins"))
+      panel_margins[0] = panel_margins[2] = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
       lines = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
@@ -438,7 +443,7 @@ main(int argc, char **argv) {
 	struct dmenu_panel dmenu;
 	dmenu.selected_monitor = selected_monitor;
 	dmenu.selected_monitor_name = selected_monitor_name;
-	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
+	dmenu_init_panel(&dmenu, panel_height, show_in_bottom, panel_margins);
 
 
 	dmenu.on_keyevent = keypress;
