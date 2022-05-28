@@ -406,6 +406,14 @@ const struct wl_seat_listener seat_listener = {
 	.name = seat_handle_name,
 };
 
+void set_monitor_xdg_output(struct dmenu_panel *panel, struct monitor_info *monitor){
+	monitor->xdg_output =
+		zxdg_output_manager_v1_get_xdg_output(panel->display_info.xdg_output_manager,
+												monitor->output);
+	zxdg_output_v1_add_listener(monitor->xdg_output, &xdg_output_listener,
+								monitor);
+}
+
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	struct dmenu_panel *panel = data;
@@ -419,6 +427,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 		panel->surface.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 
+		if(n_monitors >= 16) return;
+
 		monitors[n_monitors] = malloc(sizeof(struct monitor_info));
 		monitors[n_monitors]->panel = panel;
 		memset(monitors[n_monitors]->name, 0, MAX_MONITOR_NAME_LEN);
@@ -428,11 +438,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 							   monitors[n_monitors]);
 
 		if (panel->display_info.xdg_output_manager != NULL) {
-			monitors[n_monitors]->xdg_output =
-				zxdg_output_manager_v1_get_xdg_output(panel->display_info.xdg_output_manager,
-													  monitors[n_monitors]->output);
-			zxdg_output_v1_add_listener(monitors[n_monitors]->xdg_output, &xdg_output_listener,
-										monitors[n_monitors]);
+			set_monitor_xdg_output(panel, monitors[n_monitors]);
 		}
 		n_monitors++;
 
@@ -442,6 +448,10 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		panel->display_info.xdg_output_manager = wl_registry_bind(registry, name,
 			&zxdg_output_manager_v1_interface, 2);
+
+		for(int m = 0; m < n_monitors; m++){
+			set_monitor_xdg_output(panel, monitors[m]);
+		}
 	}
 
 }
@@ -551,15 +561,15 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 	}
 	if (!panel->monitor) {
 		if (!panel->selected_monitor_name)
-			eprintf("No monitor with index %i available.", panel->selected_monitor);
+			eprintf("No monitor with index %i available.\n", panel->selected_monitor);
 		else
-		eprintf("No monitor with name %s available.", panel->selected_monitor_name);
+		eprintf("No monitor with name %s available.\n", panel->selected_monitor_name);
 	}
 
 	panel->surface.buffer = dmenu_create_buffer(panel);
 
 	if (!panel->surface.layer_shell)
-		eprintf("Compositor does not implement wlr-layer-shell protocol.");
+		eprintf("Compositor does not implement wlr-layer-shell protocol.\n");
 	panel->surface.layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(panel->surface.layer_shell,
 											  panel->surface.surface,
