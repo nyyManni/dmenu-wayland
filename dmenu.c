@@ -120,9 +120,11 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			sym = XKB_KEY_End;
 			break;
 		case XKB_KEY_f:
+		case XKB_KEY_n:
 			sym = XKB_KEY_Right;
 			break;
 		case XKB_KEY_b:
+		case XKB_KEY_p:
 			sym = XKB_KEY_Left;
 			break;
 		case XKB_KEY_h:
