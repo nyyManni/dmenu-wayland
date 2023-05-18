@@ -18,6 +18,7 @@ Other TODO items:
 ## Requirements
 Requires a compositor which implements wlr-layer-shell and xdg-output
 protocols. Basically this means a wlroots-based compositor is needed.
+Gnome and KDE are therefore [not supported](https://github.com/nyyManni/dmenu-wayland/issues/16).
 Tested with sway 1.0.
 
 Required libraries (and headers):
