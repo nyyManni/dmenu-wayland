@@ -26,7 +26,7 @@ pangocairo          = dependency('pangocairo')
 rt                  = cc.find_library('rt')
 wayland_client      = dependency('wayland-client')
 wayland_protos      = dependency('wayland-protocols')
-wayland_scanner_dep = dependency('wayland-scanner')
+wayland_scanner_dep = dependency('wayland-scanner', native: true)
 wayland_scanner     = find_program(
   wayland_scanner_dep.get_pkgconfig_variable('wayland_scanner')
 )
