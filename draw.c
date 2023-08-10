@@ -150,11 +150,11 @@ void pango_printf(cairo_t *cairo, const char *font,
 
 
 void dmenu_draw(struct dmenu_panel *panel) {
-
 	cairo_t *cairo = panel->surface.cairo;
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
 	cairo_paint(cairo);
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
+
 	struct monitor_info *m = panel->monitor;
 	double factor = m->scale / ((double)m->physical_width
 											/ m->logical_width);
@@ -165,11 +165,11 @@ void dmenu_draw(struct dmenu_panel *panel) {
 	if (panel->draw) {
 		panel->draw(cairo, width, height, m->scale);
 	}
+
 	wl_surface_attach(panel->surface.surface, panel->surface.buffer, 0, 0);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(panel->surface.layer_surface, true);
 	wl_surface_damage(panel->surface.surface, 0, 0, m->logical_width, panel->height);
 	wl_surface_commit(panel->surface.surface);
-
 }
 
 cairo_subpixel_order_t to_cairo_subpixel_order(enum wl_output_subpixel subpixel) {
