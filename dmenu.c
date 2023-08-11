@@ -223,7 +223,7 @@ void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
-	int32_t text_y = (height - text_height) / 2.0 + *y;
+	int32_t text_y = (height * scale - text_height) / 2.0 + *y;
 
 	if (*x + padding * scale + text_width + 30 * scale > width) {
 		cairo_move_to(cairo, width, text_y);
@@ -231,7 +231,7 @@ void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
 	} else {
 		if (background_color) {
 			cairo_set_source_u32(cairo, background_color);
-			cairo_rectangle(cairo, *x, *y, (lines ? width : text_width + 2 * padding) * scale, height);
+			cairo_rectangle(cairo, *x, *y, (lines ? width : text_width + 2 * padding) * scale, height * scale);
 			cairo_fill(cairo);
 		}
 
@@ -242,7 +242,7 @@ void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
 	}
 
 	*new_x += text_width + 2 * padding * scale;
-	*new_y += height;
+	*new_y += height * scale;
 }
 
 
@@ -257,7 +257,7 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 				  false, "Aj");
 
-	int32_t text_y = (line_height - text_height) / 2.0;
+	int32_t text_y = (line_height * scale - text_height) / 2.0;
 
 	cairo_set_source_u32(cairo, color_bg);
 	cairo_paint(cairo);
@@ -271,7 +271,7 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	}
 
 	cairo_set_source_u32(cairo, color_input_bg);
-	cairo_rectangle(cairo, window_config.input_field, 0, (lines ? width : 300) * scale, line_height);
+	cairo_rectangle(cairo, window_config.input_field, 0, (lines ? width : 300) * scale, line_height * scale);
 	cairo_fill(cairo);
 
 	// draw input
@@ -310,7 +310,7 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 		if (x >= width || y >= height) break;
 
 		if (!lines) {
-			draw_text(cairo, width - 20 * scale, height, item->text,
+			draw_text(cairo, width - 20 * scale, line_height, item->text,
 						  &x, &y, &x, &bin, scale, fg_color, bg_color, item_padding);
 		} else {
 			draw_text(cairo, width * scale, line_height, item->text,
