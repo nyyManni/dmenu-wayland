@@ -89,11 +89,16 @@ static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 
 void
 insert(const char *s, ssize_t n) {
-	if(strlen(text) + n > sizeof text - 1)
+	if(strlen(text) + n > sizeof text - 1) {
 		return;
+	}
+
 	memmove(text + cursor + n, text + cursor, sizeof text - cursor - MAX(n, 0));
-	if(n > 0)
+
+	if(n > 0) {
 		memcpy(text + cursor, s, n);
+	}
+
 	cursor += n;
 	match();
 }
@@ -141,6 +146,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			return;
 		}
 	}
+
 	switch (sym) {
 	case XKB_KEY_KP_Enter: /* fallthrough */
 	case XKB_KEY_Return:
@@ -148,10 +154,12 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		fputs((sel && !shft) ? sel->text : text, stdout);
 		fflush(stdout);
 		break;
+
 	case XKB_KEY_Escape:
 		retcode = EXIT_FAILURE;
 		dmenu_close(panel);
 		break;
+
 	case XKB_KEY_Left:
 		if(cursor && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
@@ -159,6 +167,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			sel = sel->left;
 		}
 		break;
+
 	case XKB_KEY_Right:
 		if (cursor < len) {
 			cursor = nextrune(+1);
@@ -175,6 +184,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		while(sel && sel->right)
 			sel = sel->right;
 		break;
+
 	case XKB_KEY_Home:
 		if(sel == matches) {
 			cursor = 0;
@@ -188,22 +198,26 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		if (cursor > 0)
 			insert(NULL, nextrune(-1) - cursor);
 		break;
+
 	case XKB_KEY_Delete:
 		if (cursor == len)
 			return;
 		cursor = nextrune(+1);
 		break;
+
 	case XKB_KEY_Tab:
 		if(!sel) return;
 		strncpy(text, sel->text, sizeof text);
 		cursor = strlen(text);
 		match();
 		break;
+
 	default:
 		if (xkb_keysym_to_utf8(sym, buf, 8)) {
 			insert(buf, strnlen(buf, 8));
 		}
 	}
+
 	dmenu_draw(panel);
 }
 
@@ -223,6 +237,7 @@ void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
+
 	int32_t text_y = (height * scale - text_height) / 2.0 + *y;
 
 	if (*x + padding * scale + text_width + 30 * scale > width) {
@@ -279,19 +294,18 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	draw_text(cairo, width, line_height, text, &x, &y, &bin, 
 			(lines ? &y : &bin), scale, color_input_fg, 0, 6);
 
-	{
-		/* draw cursor */
-		memset(text_, 0, BUFSIZ);
-		strncpy(text_, text, cursor);
-		int32_t text_width, text_height;
-		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
-					  false, text_);
-		/* int32_t text_y = (height / 2.0) - (text_height / 2.0); */
-		int32_t padding = 6 * scale;
-		cairo_rectangle(cairo, x + padding + text_width, text_y,
-						scale, text_height);
-		cairo_fill(cairo);
-	}
+	/* draw cursor */
+	memset(text_, 0, BUFSIZ);
+	strncpy(text_, text, cursor);
+
+	int32_t text_width, text_height;
+	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
+				  false, text_);
+
+	int32_t padding = 6 * scale;
+	cairo_rectangle(cairo, x + padding + text_width, text_y,
+					scale, text_height);
+	cairo_fill(cairo);
 
 	if (!lines) {
 		x += 320 * scale;
@@ -329,91 +343,97 @@ uint32_t parse_color(char *str) {
 
 	size_t len = strnlen(str, BUFSIZ);
 
-	if ((len != 7 && len != 9) || str[0] != '#')
+	if ((len != 7 && len != 9) || str[0] != '#') {
 		eprintf("Color format must be '#rrggbb[aa]'\n");
+	}
 
 	uint32_t _val = strtol(&str[1], NULL, 16);
 
 	uint32_t color = 0x000000ff;
-	if (len == 9) /* Alpha specified */
+
+	/* Alpha specified 
+	 * Otherwise, assume full opacity */
+	if (len == 9) {
 		color = _val;
-	else /* No alpha specified, assume full opacity */
+	} else {
 		color = (_val << 8) + 0xff;
+	}
 
 	return color;
 }
 
-int
-main(int argc, char **argv) {
-  int i;
+int main(int argc, char **argv) {
+	int i;
+	progname = "dmenu";
 
-  progname = "dmenu";
-  for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
-      fputs("dmenu-wl-" VERSION
-            ", © 2006-2018 dmenu engineers, see LICENSE for details\n",
-            stdout);
-      exit(EXIT_SUCCESS);
-    } else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
-      show_in_bottom = true;
-    else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
-      message = true;
-    else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
-      message = true, messageposition = CENTRE;
-    else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
-      message = true, messageposition = RIGHT;
-    else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
-      fstrncmp = strncasecmp;
-    else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
-      returnearly = true;
-    else if (i == argc - 1) {
-      printf("2\n");
-      usage();
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
+			fputs("dmenu-wl-" VERSION
+				", © 2006-2018 dmenu engineers, see LICENSE for details\n",
+				stdout);
+			exit(EXIT_SUCCESS);
+		} else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
+			show_in_bottom = true;
+		else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
+			message = true;
+		else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
+			message = true, messageposition = CENTRE;
+		else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
+			message = true, messageposition = RIGHT;
+		else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
+			fstrncmp = strncasecmp;
+		else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
+			returnearly = true;
+		else if (i == argc - 1) {
+		  printf("2\n");
+		  usage();
 
-    }
-    /* opts that need 1 arg */
-    else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
-      timeout = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
-      line_height = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
-      lines = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
-		++i;
-		bool is_num = true;
-		for (int j = 0; j < strlen(argv[i]); ++j) {
-			if (!isdigit(argv[i][j])) {
-				is_num = false;
-				break;
+		}
+		/* opts that need 1 arg */
+		else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
+			timeout = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
+			line_height = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
+			lines = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
+			++i;
+			bool is_num = true;
+
+			for (int j = 0; j < strlen(argv[i]); ++j) {
+				if (!isdigit(argv[i][j])) {
+					is_num = false;
+					break;
+				}
+			}
+
+			if (is_num) {
+				selected_monitor = atoi(argv[i]);
+			} else {
+				selected_monitor = -1;
+				selected_monitor_name = argv[i];
 			}
 		}
-		if (is_num) {
-			selected_monitor = atoi(argv[i]);
-		} else {
-			selected_monitor = -1;
-			selected_monitor_name = argv[i];
+		else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
+			prompt = argv[++i];
+		else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
+			prompt = argv[++i], nostdin = true;
+		else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
+			font = argv[++i];
+		else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
+			color_bg = color_input_bg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
+			color_fg = color_input_fg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-sb") ||
+				 !strcmp(argv[i], "--selected-background"))
+			color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-sf") ||
+				 !strcmp(argv[i], "--selected-foreground"))
+			color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
+		else {
+		  usage();
 		}
 	}
-    else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
-      prompt = argv[++i];
-    else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
-      prompt = argv[++i], nostdin = true;
-    else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
-      font = argv[++i];
-    else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
-      color_bg = color_input_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
-      color_fg = color_input_fg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sb") ||
-             !strcmp(argv[i], "--selected-background"))
-      color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sf") ||
-             !strcmp(argv[i], "--selected-foreground"))
-      color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
-    else {
-      usage();
-    }
-  }
 
     if (message) {
         signal(SIGALRM, alarmhandler);
@@ -423,7 +443,6 @@ main(int argc, char **argv) {
     if (!nostdin) {
         readstdin();
     }
-
 
 	int32_t panel_height = line_height;
 	if (lines) {
@@ -443,7 +462,6 @@ main(int argc, char **argv) {
 	match();
 
 	struct monitor_info *monitor = dmenu.monitor;
-
 	double factor = monitor->scale / ((double)monitor->physical_width / monitor->logical_width);
 
 	window_config.height = round_to_int(dmenu.height / ((double)monitor->physical_width
@@ -460,29 +478,31 @@ main(int argc, char **argv) {
 	return retcode;
 }
 
-void
-appenditem(Item *item, Item **list, Item **last) {
+void appenditem(Item *item, Item **list, Item **last) {
 	if(!*last)
 		*list = item;
-	else
+	} else {
 		(*last)->right = item;
+	}
+
 	item->left = *last;
 	item->right = NULL;
 	*last = item;
 }
 
-char *
-fstrstr(const char *s, const char *sub) {
+char * fstrstr(const char *s, const char *sub) {
 	size_t len;
 
-	for(len = strlen(sub); *s; s++)
-		if(!fstrncmp(s, sub, len))
+	for(len = strlen(sub); *s; s++) {
+		if(!fstrncmp(s, sub, len)) {
 			return (char *)s;
+		}
+	}
+
 	return NULL;
 }
 
-void
-match(void) {
+void match(void) {
 	size_t len;
 	Item *item, *itemend, *lexact, *lprefix, *lsubstr, *exactend, *prefixend, *substrend;
 
@@ -533,17 +553,16 @@ match(void) {
     }
 }
 
-size_t
-nextrune(int incr) {
+size_t nextrune(int incr) {
 	size_t n, len;
-
 	len = strlen(text);
+
 	for(n = cursor + incr; n >= 0 && n < len && (text[n] & 0xc0) == 0x80; n += incr);
+
 	return n;
 }
 
-void
-readstdin(void) {
+void readstdin(void) {
 	char buf[sizeof text], *p;
 	Item *item, **end;
 
@@ -553,26 +572,25 @@ readstdin(void) {
 		if((p = strchr(buf, '\n'))) {
 			*p = '\0';
         }
+
 		if(!(item = malloc(sizeof *item))) {
 			eprintf("cannot malloc %u bytes\n", sizeof *item);
         }
 		item->width = -1;
+
 		if(!(item->text = strdup(buf))) {
 			eprintf("cannot strdup %u bytes\n", strlen(buf)+1);
         }
 		item->next = item->left = item->right = NULL;
-		/* inputw = MAX(inputw, textw(dc, item->text)); */
 	}
 }
 
 
-void
-alarmhandler(int signum) {
+void alarmhandler(int signum) {
     exit(EXIT_SUCCESS);
 }
 
-void
-usage(void) {
+void usage(void) {
     printf("Usage: dmenu [OPTION]...\n");
     printf("Display newline-separated input stdin as a menubar\n");
     printf("\n");

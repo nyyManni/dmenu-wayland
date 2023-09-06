@@ -36,6 +36,7 @@ static void randname(char *buf) {
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	long r = ts.tv_nsec;
+
 	for (int i = 0; i < 6; ++i) {
 		buf[i] = 'A'+(r&15)+(r&16)*2;
 		r >>= 5;
@@ -52,6 +53,7 @@ static int anonymous_shm_open(void) {
 		--retries;
 		// shm_open guarantees that O_CLOEXEC is set
 		int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
+
 		if (fd >= 0) {
 			shm_unlink(name);
 			return fd;
@@ -79,6 +81,7 @@ PangoLayout *get_pango_layout(cairo_t *cairo, const char *font,
 		const char *text, double scale, bool markup) {
 	PangoLayout *layout = pango_cairo_create_layout(cairo);
 	PangoAttrList *attrs;
+
 	if (markup) {
 		char *buf;
 		GError *error = NULL;
@@ -113,17 +116,21 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 
 	va_list args;
 	va_start(args, fmt);
+
 	if (vsnprintf(buf, sizeof(buf), fmt, args) >= max_chars) {
 		strcpy(&buf[sizeof(buf) - sizeof(overflow)], overflow);
 	}
+
 	va_end(args);
 
 	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
 	pango_cairo_update_layout(cairo, layout);
 	pango_layout_get_pixel_size(layout, width, height);
+
 	if (baseline) {
 		*baseline = pango_layout_get_baseline(layout) / PANGO_SCALE;
 	}
+
 	g_object_unref(layout);
 }
 
@@ -133,13 +140,16 @@ void pango_printf(cairo_t *cairo, const char *font,
 
 	va_list args;
 	va_start(args, fmt);
+
 	if (vsnprintf(buf, sizeof(buf), fmt, args) >= max_chars) {
 		strcpy(&buf[sizeof(buf) - sizeof(overflow)], overflow);
 	}
+
 	va_end(args);
 
 	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
 	cairo_font_options_t *fo = cairo_font_options_create();
+
 	cairo_get_font_options(cairo, fo);
 	pango_cairo_context_set_font_options(pango_layout_get_context(layout), fo);
 	cairo_font_options_destroy(fo);
@@ -358,6 +368,7 @@ static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
 		int32_t rate, int32_t delay) {
 	struct dmenu_panel *panel = data;
 	panel->repeat_delay = delay;
+
 	if (rate > 0) {
 		panel->repeat_period = 1000 / rate;
 	} else {
@@ -391,6 +402,7 @@ static const struct wl_keyboard_listener keyboard_listener = {
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	struct dmenu_panel *panel = data;
+
 	if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
 		panel->keyboard.kbd = wl_seat_get_keyboard (panel->display_info.seat);
 		wl_keyboard_add_listener (panel->keyboard.kbd, &keyboard_listener, panel);
@@ -502,8 +514,10 @@ struct wl_buffer *dmenu_create_buffer(struct dmenu_panel *panel) {
 	cairo_surface_t *s = cairo_image_surface_create_for_data(panel->surface.shm_data,
 															 CAIRO_FORMAT_ARGB32,
 															 width, height, width * 4);
+
 	panel->surface.cairo = cairo_create(s);
 	cairo_set_antialias(panel->surface.cairo, CAIRO_ANTIALIAS_BEST);
+
 	cairo_font_options_t *fo = cairo_font_options_create();
 	cairo_font_options_set_hint_style(fo, CAIRO_HINT_STYLE_FULL);
 	cairo_font_options_set_antialias(fo, CAIRO_ANTIALIAS_SUBPIXEL);
@@ -522,14 +536,17 @@ static const struct wl_registry_listener registry_listener = {
 
 
 void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
-	if(!setlocale(LC_CTYPE, ""))
+	if(!setlocale(LC_CTYPE, "")) {
 		weprintf("no locale support\n");
+	}
 
-	if(!(panel->display_info.display = wl_display_connect(NULL)))
+	if(!(panel->display_info.display = wl_display_connect(NULL))) {
 		eprintf("cannot open display\n");
+	}
 
-	if ((panel->repeat_timer = timerfd_create(CLOCK_MONOTONIC, 0)) < 0)
+	if ((panel->repeat_timer = timerfd_create(CLOCK_MONOTONIC, 0)) < 0) {
 		eprintf("cannot create timer fd\n");
+	}
 
 	panel->height = height;
 	panel->keyboard.control = false;
@@ -559,6 +576,7 @@ void dmenu_init_panel(struct dmenu_panel *panel, int32_t height, bool bottom) {
 			}
 		}
 	}
+
 	if (!panel->monitor) {
 		if (!panel->selected_monitor_name)
 			eprintf("No monitor with index %i available.\n", panel->selected_monitor);
