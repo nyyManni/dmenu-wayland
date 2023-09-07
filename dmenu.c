@@ -576,11 +576,13 @@ void readstdin(void) {
 		if(!(item = malloc(sizeof *item))) {
 			eprintf("cannot malloc %u bytes\n", sizeof *item);
         }
+
 		item->width = -1;
 
 		if(!(item->text = strdup(buf))) {
 			eprintf("cannot strdup %u bytes\n", strlen(buf)+1);
         }
+
 		item->next = item->left = item->right = NULL;
 	}
 }
