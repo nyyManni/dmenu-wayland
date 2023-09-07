@@ -78,6 +78,7 @@ static bool message = false;
 static bool nostdin = false;
 static bool returnearly = false;
 static bool show_in_bottom = false;
+static bool password = false;
 static TextPosition messageposition = LEFT;
 static Item *items = NULL;
 static Item *matches, *sel;
@@ -294,18 +295,20 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	draw_text(cairo, width, line_height, text, &x, &y, &bin, 
 			(lines ? &y : &bin), scale, color_input_fg, 0, 6);
 
-	/* draw cursor */
-	memset(text_, 0, BUFSIZ);
-	strncpy(text_, text, cursor);
+	{
+		/* draw cursor */
+		memset(text_, 0, BUFSIZ);
+		strncpy(text_, text, cursor);
 
-	int32_t text_width, text_height;
-	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
-				  false, text_);
+		int32_t text_width, text_height;
+		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
+					  false, text_);
 
-	int32_t padding = 6 * scale;
-	cairo_rectangle(cairo, x + padding + text_width, text_y,
-					scale, text_height);
-	cairo_fill(cairo);
+		int32_t padding = 6 * scale;
+		cairo_rectangle(cairo, x + padding + text_width, text_y,
+						scale, text_height);
+		cairo_fill(cairo);
+	}
 
 	if (!lines) {
 		x += 320 * scale;
