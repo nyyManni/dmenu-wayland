@@ -88,8 +88,7 @@ static char *font = "Mono";
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 
-void
-insert(const char *s, ssize_t n) {
+void insert(const char *s, ssize_t n) {
 	if(strlen(text) + n > sizeof text - 1) {
 		return;
 	}
@@ -290,16 +289,21 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 	cairo_rectangle(cairo, window_config.input_field, 0, (lines ? width : 300) * scale, line_height * scale);
 	cairo_fill(cairo);
 
+	memset(text_, 0, BUFSIZ);
+
+	if (password) {
+		memset(text_, '*', strlen(text));
+	} else {
+		strncpy(text_, text, cursor);
+	}
+
 	// draw input
 	// depending on orientation add heigth of input to y
-	draw_text(cairo, width, line_height, text, &x, &y, &bin, 
+	draw_text(cairo, width, line_height, text_, &x, &y, &bin, 
 			(lines ? &y : &bin), scale, color_input_fg, 0, 6);
 
 	{
 		/* draw cursor */
-		memset(text_, 0, BUFSIZ);
-		strncpy(text_, text, cursor);
-
 		int32_t text_width, text_height;
 		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 					  false, text_);
@@ -387,10 +391,10 @@ int main(int argc, char **argv) {
 			fstrncmp = strncasecmp;
 		else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
 			returnearly = true;
+		else if (!strcmp(argv[i], "-P"))
+			password = true;
 		else if (i == argc - 1) {
-		  printf("2\n");
-		  usage();
-
+			usage();
 		}
 		/* opts that need 1 arg */
 		else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
@@ -434,7 +438,7 @@ int main(int argc, char **argv) {
 				 !strcmp(argv[i], "--selected-foreground"))
 			color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
 		else {
-		  usage();
+			usage();
 		}
 	}
 
@@ -482,7 +486,7 @@ int main(int argc, char **argv) {
 }
 
 void appenditem(Item *item, Item **list, Item **last) {
-	if(!*last)
+	if(!*last) {
 		*list = item;
 	} else {
 		(*last)->right = item;
