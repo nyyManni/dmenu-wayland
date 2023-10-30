@@ -153,13 +153,16 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		dmenu_close(panel);
 		break;
 	case XKB_KEY_Left:
+	case XKB_KEY_Up:
 		if(cursor && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
 		} if (sel && sel->left) {
 			sel = sel->left;
 		}
 		break;
+
 	case XKB_KEY_Right:
+	case XKB_KEY_Down:
 		if (cursor < len) {
 			cursor = nextrune(+1);
 		} else if (cursor == len) {
