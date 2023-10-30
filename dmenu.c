@@ -1,4 +1,5 @@
 /* See LICENSE file for copyright and license details. */
+#include <bits/stdint-intn.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <signal.h>
@@ -51,7 +52,7 @@ static uint32_t color_prompt_fg = 0xeeeeeeff;
 static uint32_t color_selected_bg = 0x005577ff;
 static uint32_t color_selected_fg = 0xeeeeeeff;
 
-static int32_t panel_height = 20;
+static int32_t line_height = 20;
 
 static void appenditem(Item *item, Item **list, Item **last);
 static char *fstrstr(const char *s, const char *sub);
@@ -77,6 +78,7 @@ static bool message = false;
 static bool nostdin = false;
 static bool returnearly = false;
 static bool show_in_bottom = false;
+static bool password = false;
 static TextPosition messageposition = LEFT;
 static Item *items = NULL;
 static Item *matches, *sel;
@@ -86,13 +88,17 @@ static char *font = "Mono";
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 
-void
-insert(const char *s, ssize_t n) {
-	if(strlen(text) + n > sizeof text - 1)
+void insert(const char *s, ssize_t n) {
+	if(strlen(text) + n > sizeof text - 1) {
 		return;
+	}
+
 	memmove(text + cursor + n, text + cursor, sizeof text - cursor - MAX(n, 0));
-	if(n > 0)
+
+	if(n > 0) {
 		memcpy(text + cursor, s, n);
+	}
+
 	cursor += n;
 	match();
 }
@@ -140,6 +146,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			return;
 		}
 	}
+
 	switch (sym) {
 	case XKB_KEY_KP_Enter: /* fallthrough */
 	case XKB_KEY_Return:
@@ -147,10 +154,12 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		fputs((sel && !shft) ? sel->text : text, stdout);
 		fflush(stdout);
 		break;
+
 	case XKB_KEY_Escape:
 		retcode = EXIT_FAILURE;
 		dmenu_close(panel);
 		break;
+
 	case XKB_KEY_Left:
 		if(cursor && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
@@ -158,6 +167,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 			sel = sel->left;
 		}
 		break;
+
 	case XKB_KEY_Right:
 		if (cursor < len) {
 			cursor = nextrune(+1);
@@ -174,6 +184,7 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		while(sel && sel->right)
 			sel = sel->right;
 		break;
+
 	case XKB_KEY_Home:
 		if(sel == matches) {
 			cursor = 0;
@@ -187,22 +198,26 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		if (cursor > 0)
 			insert(NULL, nextrune(-1) - cursor);
 		break;
+
 	case XKB_KEY_Delete:
 		if (cursor == len)
 			return;
 		cursor = nextrune(+1);
 		break;
+
 	case XKB_KEY_Tab:
 		if(!sel) return;
 		strncpy(text, sel->text, sizeof text);
 		cursor = strlen(text);
 		match();
 		break;
+
 	default:
 		if (xkb_keysym_to_utf8(sym, buf, 8)) {
 			insert(buf, strnlen(buf, 8));
 		}
 	}
+
 	dmenu_draw(panel);
 }
 
@@ -214,127 +229,119 @@ void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 			(color >> (0*8) & 0xFF) / 255.0);
 }
 
-int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
-				  int32_t x, int32_t scale, uint32_t
+void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
+				  int32_t *x, int32_t *y, int32_t *new_x, int32_t *new_y,
+				  int32_t scale, uint32_t
 				  foreground_color, uint32_t background_color, int32_t padding) {
 
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
-	int32_t text_y = (height / 2.0) - (text_height / 2.0);
 
-	if (x + padding * scale + text_width + 30 * scale > width) {
-	/* if (x + padding * scale + text_width > width) { */
+	int32_t text_y = (height * scale - text_height) / 2.0 + *y;
 
+	if (*x + padding * scale + text_width + 30 * scale > width) {
 		cairo_move_to(cairo, width, text_y);
 		pango_printf(cairo, font, scale, false, ">");
 	} else {
 		if (background_color) {
 			cairo_set_source_u32(cairo, background_color);
-			cairo_rectangle(cairo, x, 0, text_width + 2 * padding * scale, height);
+			cairo_rectangle(cairo, *x, *y, (lines ? width : text_width + 2 * padding) * scale, height * scale);
 			cairo_fill(cairo);
 		}
 
-		cairo_move_to(cairo, x + padding * scale, text_y);
+		cairo_move_to(cairo, *x + padding * scale, text_y);
 		cairo_set_source_u32(cairo, foreground_color);
 
 		pango_printf(cairo, font, scale, false, str);
 	}
 
-	return x + text_width + 2 * padding * scale;
+	*new_x += text_width + 2 * padding * scale;
+	*new_y += height * scale;
 }
 
-void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 
-	int32_t x = window_config.input_field;
+void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
+	int32_t x = 0;
+	int32_t y = 0;
+	int32_t bin;
 
 	int32_t item_padding = 10;
-
 	int32_t text_width, text_height;
+
 	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 				  false, "Aj");
-	int32_t text_y = (height / 2.0) - (text_height / 2.0);
+
+	int32_t text_y = (line_height * scale - text_height) / 2.0;
 
 	cairo_set_source_u32(cairo, color_bg);
 	cairo_paint(cairo);
 
 	if (prompt) {
-		x = draw_text(cairo, width, height, prompt, 0, scale, color_prompt_fg,
-					  color_prompt_bg, 6);
+		draw_text(cairo, width, line_height, prompt, &x, &y, 
+				&x, &bin, scale, color_prompt_fg, color_prompt_bg, 6);
 		window_config.input_field = x;
 	} else {
 		window_config.input_field = 0;
 	}
 
 	cairo_set_source_u32(cairo, color_input_bg);
-	cairo_rectangle(cairo, window_config.input_field, 0, 300 * scale, height);
+	cairo_rectangle(cairo, window_config.input_field, 0, (lines ? width : 300) * scale, line_height * scale);
 	cairo_fill(cairo);
 
-	draw_text(cairo, width, height, text, x, scale, color_input_fg, 0, 6);
+	memset(text_, 0, BUFSIZ);
+
+	if (password) {
+		memset(text_, '*', strlen(text));
+	} else {
+		strncpy(text_, text, cursor);
+	}
+
+	// draw input
+	// depending on orientation add heigth of input to y
+	draw_text(cairo, width, line_height, text_, &x, &y, &bin, 
+			(lines ? &y : &bin), scale, color_input_fg, 0, 6);
 
 	{
 		/* draw cursor */
-		memset(text_, 0, BUFSIZ);
-		strncpy(text_, text, cursor);
 		int32_t text_width, text_height;
 		get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 					  false, text_);
-		/* int32_t text_y = (height / 2.0) - (text_height / 2.0); */
+
 		int32_t padding = 6 * scale;
 		cairo_rectangle(cairo, x + padding + text_width, text_y,
 						scale, text_height);
 		cairo_fill(cairo);
 	}
 
-	x += 300 * scale;
+	if (!lines) {
+		x += 320 * scale;
+	}
 
 	/* Scroll indicator will be drawn later if required. */
 	int32_t scroll_indicator_pos = x;
-	x += 20 * scale;
 
-	if (matches) {
-		/* draw matches */
-		Item *item;
-		/* for (item = matches; item; item = item->right) { */
-		/* 	if (item->width == -1) { */
-		/* 		get_text_size(cairo, font, &item->width, NULL, NULL, scale, */
-		/* 					  false, item->text); */
-		/* 		item->width += item_padding; */
-		/* 		/\* printf("%d ", item->width); *\/ */
-		/* 	} */
-		/* } */
+	if (!matches) return;
+	Item *item;
 
-		/* /\* Figure out if we need to scroll. *\/ */
-		/* int32_t item_pos = x; */
-		/* bool found = false; */
-		/* rightmost = NULL; */
-		/* for (item = leftmost; item; item = item->right) { */
-		/* 	item_pos += item->width; */
-		/* 	if (item_pos >= (width - x - 80 * scale)) { */
-		/* 		rightmost = item->left; */
-		/* 		printf("rightmost: %s\n", item->left->text); */
-		/* 		found = true; */
-		/* 		break; */
-		/* 	} */
-		/* } */
+	for (item = matches; item; item = item->right) {
+		uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
+		uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
 
-		for (item = matches; item; item = item->right) {
-			uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
-			uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
-			if (x < width) {
-				/* x = draw_text(cairo, width - 20 * scale, height, item->text, */
-				/* 			  x, scale, fg_color, bg_color, item_padding); */
-				x = draw_text(cairo, width - 20 * scale, height, item->text,
-							  x, scale, fg_color, bg_color, item_padding);
-			} else {
-				break;
-			}
+		if (x >= width || y >= height) break;
+
+		if (!lines) {
+			draw_text(cairo, width - 20 * scale, line_height, item->text,
+						  &x, &y, &x, &bin, scale, fg_color, bg_color, item_padding);
+		} else {
+			draw_text(cairo, width * scale, line_height, item->text,
+						  &x, &y, &bin, &y, scale, fg_color, bg_color, item_padding);
 		}
+	}
 
-		if (leftmost != matches) {
-			cairo_move_to(cairo, scroll_indicator_pos, text_y);
-			pango_printf(cairo, font, scale, false, "<");
-		}
+	if (leftmost != matches) {
+		cairo_move_to(cairo, scroll_indicator_pos, text_y);
+		pango_printf(cairo, font, scale, false, "<");
 	}
 }
 
@@ -343,153 +350,168 @@ uint32_t parse_color(char *str) {
 
 	size_t len = strnlen(str, BUFSIZ);
 
-	if ((len != 7 && len != 9) || str[0] != '#')
+	if ((len != 7 && len != 9) || str[0] != '#') {
 		eprintf("Color format must be '#rrggbb[aa]'\n");
+	}
 
 	uint32_t _val = strtol(&str[1], NULL, 16);
 
 	uint32_t color = 0x000000ff;
-	if (len == 9) /* Alpha specified */
+
+	/* Alpha specified 
+	 * Otherwise, assume full opacity */
+	if (len == 9) {
 		color = _val;
-	else /* No alpha specified, assume full opacity */
+	} else {
 		color = (_val << 8) + 0xff;
+	}
 
 	return color;
 }
 
-int
-main(int argc, char **argv) {
-  int i;
+int main(int argc, char **argv) {
+	int i;
+	progname = "dmenu";
 
-  progname = "dmenu";
-  for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
-      fputs("dmenu-wl-" VERSION
-            ", © 2006-2018 dmenu engineers, see LICENSE for details\n",
-            stdout);
-      exit(EXIT_SUCCESS);
-    } else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
-      show_in_bottom = true;
-    else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
-      message = true;
-    else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
-      message = true, messageposition = CENTRE;
-    else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
-      message = true, messageposition = RIGHT;
-    else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
-      fstrncmp = strncasecmp;
-    else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
-      returnearly = true;
-    else if (i == argc - 1) {
-      printf("2\n");
-      usage();
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-v") || !strcmp(argv[1], "--version")) {
+			fputs("dmenu-wl-" VERSION
+				", © 2006-2018 dmenu engineers, see LICENSE for details\n",
+				stdout);
+			exit(EXIT_SUCCESS);
+		} else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bottom"))
+			show_in_bottom = true;
+		else if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--echo"))
+			message = true;
+		else if (!strcmp(argv[i], "-ec") || !strcmp(argv[i], "--echo-centre"))
+			message = true, messageposition = CENTRE;
+		else if (!strcmp(argv[i], "-er") || !strcmp(argv[i], "--echo-right"))
+			message = true, messageposition = RIGHT;
+		else if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--insensitive"))
+			fstrncmp = strncasecmp;
+		else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--return-early"))
+			returnearly = true;
+		else if (!strcmp(argv[i], "-P"))
+			password = true;
+		else if (i == argc - 1) {
+			usage();
+		}
+		/* opts that need 1 arg */
+		else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
+			timeout = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
+			line_height = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
+			lines = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
+			++i;
+			bool is_num = true;
 
-    }
-    /* opts that need 1 arg */
-    else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
-      timeout = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
-      panel_height = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
-      lines = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
-		++i;
-		bool is_num = true;
-		for (int j = 0; j < strlen(argv[i]); ++j) {
-			if (!isdigit(argv[i][j])) {
-				is_num = false;
-				break;
+			for (int j = 0; j < strlen(argv[i]); ++j) {
+				if (!isdigit(argv[i][j])) {
+					is_num = false;
+					break;
+				}
+			}
+
+			if (is_num) {
+				selected_monitor = atoi(argv[i]);
+			} else {
+				selected_monitor = -1;
+				selected_monitor_name = argv[i];
 			}
 		}
-		if (is_num) {
-			selected_monitor = atoi(argv[i]);
-		} else {
-			selected_monitor = -1;
-			selected_monitor_name = argv[i];
+		else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
+			prompt = argv[++i];
+		else if (!strcmp(argv[i], "-P") || !strcmp(argv[i], "--password"))
+			password = true;
+		else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
+			prompt = argv[++i], nostdin = true;
+		else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
+			font = argv[++i];
+		else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
+			color_bg = color_input_bg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
+			color_fg = color_input_fg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-sb") ||
+				 !strcmp(argv[i], "--selected-background"))
+			color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
+		else if (!strcmp(argv[i], "-sf") ||
+				 !strcmp(argv[i], "--selected-foreground"))
+			color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
+		else {
+			usage();
 		}
 	}
-    else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
-      prompt = argv[++i];
-    else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
-      prompt = argv[++i], nostdin = true;
-    else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
-      font = argv[++i];
-    else if (!strcmp(argv[i], "-nb") || !strcmp(argv[i], "--normal-background"))
-      color_bg = color_input_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-nf") || !strcmp(argv[i], "--normal-foreground"))
-      color_fg = color_input_fg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sb") ||
-             !strcmp(argv[i], "--selected-background"))
-      color_prompt_bg = color_selected_bg = parse_color(argv[++i]);
-    else if (!strcmp(argv[i], "-sf") ||
-             !strcmp(argv[i], "--selected-foreground"))
-      color_prompt_fg = color_selected_fg = parse_color(argv[++i]);
-    else {
-      usage();
-    }
-  }
 
     if (message) {
         signal(SIGALRM, alarmhandler);
         alarm(timeout);
     }
-    if(!nostdin) {
+
+    if (!nostdin) {
         readstdin();
     }
+
+	int32_t panel_height = line_height;
+	if (lines) {
+		// +1 for input
+	    panel_height *= lines + 1;
+	}
 
 	struct dmenu_panel dmenu;
 	dmenu.selected_monitor = selected_monitor;
 	dmenu.selected_monitor_name = selected_monitor_name;
 	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
 
-
 	dmenu.on_keyevent = keypress;
 	dmenu.on_keyrepeat = keyrepeat;
 	dmenu.draw = draw;
+
 	match();
 
 	struct monitor_info *monitor = dmenu.monitor;
-
 	double factor = monitor->scale / ((double)monitor->physical_width / monitor->logical_width);
 
-	window_config.height =round_to_int(dmenu.height / ((double)monitor->physical_width
+	window_config.height = round_to_int(dmenu.height / ((double)monitor->physical_width
 												  / monitor->logical_width));
 	window_config.height *= monitor->scale;
-
 	window_config.width = round_to_int(monitor->physical_width * factor);
+
 	get_text_size(dmenu.surface.cairo, font, NULL, &window_config.text_height,
 				  NULL, monitor->scale, false, "Aj");
+
 	window_config.text_y = (window_config.height / 2.0) - (window_config.text_height / 2.0);
 
-
 	dmenu_show(&dmenu);
-
 	return retcode;
 }
 
-void
-appenditem(Item *item, Item **list, Item **last) {
-	if(!*last)
+void appenditem(Item *item, Item **list, Item **last) {
+	if(!*last) {
 		*list = item;
-	else
+	} else {
 		(*last)->right = item;
+	}
+
 	item->left = *last;
 	item->right = NULL;
 	*last = item;
 }
 
-char *
-fstrstr(const char *s, const char *sub) {
+char * fstrstr(const char *s, const char *sub) {
 	size_t len;
 
-	for(len = strlen(sub); *s; s++)
-		if(!fstrncmp(s, sub, len))
+	for(len = strlen(sub); *s; s++) {
+		if(!fstrncmp(s, sub, len)) {
 			return (char *)s;
+		}
+	}
+
 	return NULL;
 }
 
-void
-match(void) {
+void match(void) {
 	size_t len;
 	Item *item, *itemend, *lexact, *lprefix, *lsubstr, *exactend, *prefixend, *substrend;
 
@@ -516,8 +538,10 @@ match(void) {
 			itemend->right = lprefix;
 			lprefix->left = itemend;
 		}
-		else
+		else {
 			matches = lprefix;
+		}
+
 		itemend = prefixend;
 	}
 	if(lsubstr) {
@@ -538,17 +562,16 @@ match(void) {
     }
 }
 
-size_t
-nextrune(int incr) {
+size_t nextrune(int incr) {
 	size_t n, len;
-
 	len = strlen(text);
+
 	for(n = cursor + incr; n >= 0 && n < len && (text[n] & 0xc0) == 0x80; n += incr);
+
 	return n;
 }
 
-void
-readstdin(void) {
+void readstdin(void) {
 	char buf[sizeof text], *p;
 	Item *item, **end;
 
@@ -558,26 +581,27 @@ readstdin(void) {
 		if((p = strchr(buf, '\n'))) {
 			*p = '\0';
         }
+
 		if(!(item = malloc(sizeof *item))) {
 			eprintf("cannot malloc %u bytes\n", sizeof *item);
         }
+
 		item->width = -1;
+
 		if(!(item->text = strdup(buf))) {
 			eprintf("cannot strdup %u bytes\n", strlen(buf)+1);
         }
+
 		item->next = item->left = item->right = NULL;
-		/* inputw = MAX(inputw, textw(dc, item->text)); */
 	}
 }
 
 
-void
-alarmhandler(int signum) {
+void alarmhandler(int signum) {
     exit(EXIT_SUCCESS);
 }
 
-void
-usage(void) {
+void usage(void) {
     printf("Usage: dmenu [OPTION]...\n");
     printf("Display newline-separated input stdin as a menubar\n");
     printf("\n");
@@ -597,6 +621,7 @@ usage(void) {
     printf("                                      compatibility with dmenu.\n");
     printf("  -p,  --prompt  PROMPT             prompt to be displayed to the left of the\n");
     printf("                                      input field\n");
+    printf("  -P,  --password                   input will be hidden\n");
     printf("  -po, --prompt-only  PROMPT        same as -p but don't wait for stdin\n");
     printf("                                      useful for a prompt with no menu\n");
     printf("  -r,  --return-early               return as soon as a single match is found\n");
