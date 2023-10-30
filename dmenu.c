@@ -1,4 +1,5 @@
 /* See LICENSE file for copyright and license details. */
+#include <bits/stdint-intn.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <signal.h>
@@ -51,7 +52,7 @@ static uint32_t color_prompt_fg = 0xeeeeeeff;
 static uint32_t color_selected_bg = 0x005577ff;
 static uint32_t color_selected_fg = 0xeeeeeeff;
 
-static int32_t panel_height = 20;
+static int32_t line_height = 20;
 
 static void appenditem(Item *item, Item **list, Item **last);
 static char *fstrstr(const char *s, const char *sub);
@@ -152,13 +153,16 @@ void keypress(struct dmenu_panel *panel, enum wl_keyboard_key_state state,
 		dmenu_close(panel);
 		break;
 	case XKB_KEY_Left:
+	case XKB_KEY_Up:
 		if(cursor && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
 		} if (sel && sel->left) {
 			sel = sel->left;
 		}
 		break;
+
 	case XKB_KEY_Right:
+	case XKB_KEY_Down:
 		if (cursor < len) {
 			cursor = nextrune(+1);
 		} else if (cursor == len) {
@@ -214,63 +218,69 @@ void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 			(color >> (0*8) & 0xFF) / 255.0);
 }
 
-int32_t draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
-				  int32_t x, int32_t scale, uint32_t
+void draw_text(cairo_t *cairo, int32_t width, int32_t height, const char *str,
+				  int32_t *x, int32_t *y, int32_t *new_x, int32_t *new_y,
+				  int32_t scale, uint32_t
 				  foreground_color, uint32_t background_color, int32_t padding) {
 
 	int32_t text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height,
 				  NULL, scale, false, str);
-	int32_t text_y = (height / 2.0) - (text_height / 2.0);
+	int32_t text_y = (height * scale - text_height) / 2.0 + *y;
 
-	if (x + padding * scale + text_width + 30 * scale > width) {
-	/* if (x + padding * scale + text_width > width) { */
-
+	if (*x + padding * scale + text_width + 30 * scale > width) {
 		cairo_move_to(cairo, width, text_y);
 		pango_printf(cairo, font, scale, false, ">");
 	} else {
 		if (background_color) {
 			cairo_set_source_u32(cairo, background_color);
-			cairo_rectangle(cairo, x, 0, text_width + 2 * padding * scale, height);
+			cairo_rectangle(cairo, *x, *y, (lines ? width : text_width + 2 * padding) * scale, height * scale);
 			cairo_fill(cairo);
 		}
 
-		cairo_move_to(cairo, x + padding * scale, text_y);
+		cairo_move_to(cairo, *x + padding * scale, text_y);
 		cairo_set_source_u32(cairo, foreground_color);
 
 		pango_printf(cairo, font, scale, false, str);
 	}
 
-	return x + text_width + 2 * padding * scale;
+	*new_x += text_width + 2 * padding * scale;
+	*new_y += height * scale;
 }
 
-void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 
-	int32_t x = window_config.input_field;
+void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
+	int32_t x = 0;
+	int32_t y = 0;
+	int32_t bin;
 
 	int32_t item_padding = 10;
-
 	int32_t text_width, text_height;
+
 	get_text_size(cairo, font, &text_width, &text_height, NULL, scale,
 				  false, "Aj");
-	int32_t text_y = (height / 2.0) - (text_height / 2.0);
+
+	int32_t text_y = (line_height * scale - text_height) / 2.0;
 
 	cairo_set_source_u32(cairo, color_bg);
 	cairo_paint(cairo);
 
 	if (prompt) {
-		x = draw_text(cairo, width, height, prompt, 0, scale, color_prompt_fg,
-					  color_prompt_bg, 6);
+		draw_text(cairo, width, line_height, prompt, &x, &y, 
+				&x, &bin, scale, color_prompt_fg, color_prompt_bg, 6);
 		window_config.input_field = x;
 	} else {
 		window_config.input_field = 0;
 	}
 
 	cairo_set_source_u32(cairo, color_input_bg);
-	cairo_rectangle(cairo, window_config.input_field, 0, 300 * scale, height);
+	cairo_rectangle(cairo, window_config.input_field, 0, (lines ? width : 300) * scale, line_height * scale);
 	cairo_fill(cairo);
 
-	draw_text(cairo, width, height, text, x, scale, color_input_fg, 0, 6);
+	// draw input
+	// depending on orientation add heigth of input to y
+	draw_text(cairo, width, line_height, text, &x, &y, &bin, 
+			(lines ? &y : &bin), scale, color_input_fg, 0, 6);
 
 	{
 		/* draw cursor */
@@ -286,55 +296,34 @@ void draw(cairo_t *cairo, int32_t width, int32_t height, int32_t scale) {
 		cairo_fill(cairo);
 	}
 
-	x += 300 * scale;
+	if (!lines) {
+		x += 320 * scale;
+	}
 
 	/* Scroll indicator will be drawn later if required. */
 	int32_t scroll_indicator_pos = x;
-	x += 20 * scale;
 
-	if (matches) {
-		/* draw matches */
-		Item *item;
-		/* for (item = matches; item; item = item->right) { */
-		/* 	if (item->width == -1) { */
-		/* 		get_text_size(cairo, font, &item->width, NULL, NULL, scale, */
-		/* 					  false, item->text); */
-		/* 		item->width += item_padding; */
-		/* 		/\* printf("%d ", item->width); *\/ */
-		/* 	} */
-		/* } */
+	if (!matches) return;
+	Item *item;
 
-		/* /\* Figure out if we need to scroll. *\/ */
-		/* int32_t item_pos = x; */
-		/* bool found = false; */
-		/* rightmost = NULL; */
-		/* for (item = leftmost; item; item = item->right) { */
-		/* 	item_pos += item->width; */
-		/* 	if (item_pos >= (width - x - 80 * scale)) { */
-		/* 		rightmost = item->left; */
-		/* 		printf("rightmost: %s\n", item->left->text); */
-		/* 		found = true; */
-		/* 		break; */
-		/* 	} */
-		/* } */
+	for (item = matches; item; item = item->right) {
+		uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
+		uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
 
-		for (item = matches; item; item = item->right) {
-			uint32_t bg_color = sel == item ? color_selected_bg : color_bg;
-			uint32_t fg_color = sel == item ? color_selected_fg : color_fg;
-			if (x < width) {
-				/* x = draw_text(cairo, width - 20 * scale, height, item->text, */
-				/* 			  x, scale, fg_color, bg_color, item_padding); */
-				x = draw_text(cairo, width - 20 * scale, height, item->text,
-							  x, scale, fg_color, bg_color, item_padding);
-			} else {
-				break;
-			}
+		if (x >= width || y >= height) break;
+
+		if (!lines) {
+			draw_text(cairo, width - 20 * scale, line_height, item->text,
+						  &x, &y, &x, &bin, scale, fg_color, bg_color, item_padding);
+		} else {
+			draw_text(cairo, width * scale, line_height, item->text,
+						  &x, &y, &bin, &y, scale, fg_color, bg_color, item_padding);
 		}
+	}
 
-		if (leftmost != matches) {
-			cairo_move_to(cairo, scroll_indicator_pos, text_y);
-			pango_printf(cairo, font, scale, false, "<");
-		}
+	if (leftmost != matches) {
+		cairo_move_to(cairo, scroll_indicator_pos, text_y);
+		pango_printf(cairo, font, scale, false, "<");
 	}
 }
 
@@ -389,7 +378,7 @@ main(int argc, char **argv) {
     else if (!strcmp(argv[i], "-et") || !strcmp(argv[i], "--echo-timeout"))
       timeout = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--height"))
-      panel_height = atoi(argv[++i]);
+      line_height = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--lines"))
       lines = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--monitor")) {
@@ -433,37 +422,44 @@ main(int argc, char **argv) {
         signal(SIGALRM, alarmhandler);
         alarm(timeout);
     }
-    if(!nostdin) {
+
+    if (!nostdin) {
         readstdin();
     }
+
+
+	int32_t panel_height = line_height;
+	if (lines) {
+		// +1 for input
+	    panel_height *= lines + 1;
+	}
 
 	struct dmenu_panel dmenu;
 	dmenu.selected_monitor = selected_monitor;
 	dmenu.selected_monitor_name = selected_monitor_name;
 	dmenu_init_panel(&dmenu, panel_height, show_in_bottom);
 
-
 	dmenu.on_keyevent = keypress;
 	dmenu.on_keyrepeat = keyrepeat;
 	dmenu.draw = draw;
+
 	match();
 
 	struct monitor_info *monitor = dmenu.monitor;
 
 	double factor = monitor->scale / ((double)monitor->physical_width / monitor->logical_width);
 
-	window_config.height =round_to_int(dmenu.height / ((double)monitor->physical_width
+	window_config.height = round_to_int(dmenu.height / ((double)monitor->physical_width
 												  / monitor->logical_width));
 	window_config.height *= monitor->scale;
-
 	window_config.width = round_to_int(monitor->physical_width * factor);
+
 	get_text_size(dmenu.surface.cairo, font, NULL, &window_config.text_height,
 				  NULL, monitor->scale, false, "Aj");
+
 	window_config.text_y = (window_config.height / 2.0) - (window_config.text_height / 2.0);
 
-
 	dmenu_show(&dmenu);
-
 	return retcode;
 }
 
@@ -516,8 +512,10 @@ match(void) {
 			itemend->right = lprefix;
 			lprefix->left = itemend;
 		}
-		else
+		else {
 			matches = lprefix;
+		}
+
 		itemend = prefixend;
 	}
 	if(lsubstr) {
