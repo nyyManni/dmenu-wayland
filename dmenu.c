@@ -423,6 +423,8 @@ int main(int argc, char **argv) {
 		}
 		else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--prompt"))
 			prompt = argv[++i];
+		else if (!strcmp(argv[i], "-P") || !strcmp(argv[i], "--password"))
+			password = true;
 		else if (!strcmp(argv[i], "-po") || !strcmp(argv[i], "--prompt-only"))
 			prompt = argv[++i], nostdin = true;
 		else if (!strcmp(argv[i], "-fn") || !strcmp(argv[i], "--font-name"))
@@ -619,6 +621,7 @@ void usage(void) {
     printf("                                      compatibility with dmenu.\n");
     printf("  -p,  --prompt  PROMPT             prompt to be displayed to the left of the\n");
     printf("                                      input field\n");
+    printf("  -P,  --password                   input will be hidden\n");
     printf("  -po, --prompt-only  PROMPT        same as -p but don't wait for stdin\n");
     printf("                                      useful for a prompt with no menu\n");
     printf("  -r,  --return-early               return as soon as a single match is found\n");
