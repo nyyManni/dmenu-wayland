@@ -78,5 +78,9 @@ executable('dmenu-wl_path', 'dmenu_path.c', install: true)
 
 install_data('dmenu-wl_run', install_dir: get_option('bindir'))
 
-install_man('dmenu-wl.1')
+install_man(configure_file(
+  input: 'dmenu-wl.1',
+  output: '@PLAINNAME@',
+  configuration: { 'VERSION': meson.project_version() }
+))
 
